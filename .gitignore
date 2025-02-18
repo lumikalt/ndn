@@ -1,0 +1,5 @@
+# Ignore the ndn binary
+ndn
+
+# Ignore object files
+obj
