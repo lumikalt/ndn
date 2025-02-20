@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
+CFLAGS = -Wall -Wextra -std=gnu99
 LDFLAGS = -lpthread
 SRC = $(wildcard *.c)
 OBJ = $(SRC:.c=.o)
