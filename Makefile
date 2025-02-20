@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
-LDFLAGS =
+LDFLAGS = -lpthread
 SRC = $(wildcard *.c)
 OBJ = $(SRC:.c=.o)
 EXEC = ndn
@@ -13,8 +13,6 @@ $(OBJDIR)/%.o: %.c
 	@mkdir -p $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-clean:
-	rm -rf $(OBJDIR) $(EXEC)
 $(EXEC): $(OBJ)
 	$(CC) $(LDFLAGS) -o $@ $^
 
