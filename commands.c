@@ -66,7 +66,7 @@ NetNode *ndn_nodes(Server *s, u16 net) {
 
   sprintf(buffer, "NODES %03d", net);
 
-  if (n = sendto(s->serverfd, buffer, sizeof(buffer), 0, s->udp->ai_addr,
+  if (n = sendto(s->serverfd, buffer, strlen(buffer), 0, s->udp->ai_addr,
                  s->udp->ai_addrlen),
       n <= 0)
     perror("ERR: Failed to send the NODES request"); // TODO: clean up
@@ -90,34 +90,62 @@ NetNode *ndn_nodes(Server *s, u16 net) {
 
   /* Get the nodes */
 
-  while (1) {
-    char response[256];
+  // char buffer[256];
+  char line[512];      // Buffer to store incomplete lines
+  size_t line_len = 0; // Length of the incomplete line
+  char *ptr;
+  while (true) {
     // Check if there are no more bytes to read
-    n = recvfrom(s->serverfd, response, sizeof(response), 0, s->udp->ai_addr,
+    n = recvfrom(s->serverfd, buffer, sizeof(buffer) - 1, 0, s->udp->ai_addr,
                  &s->udp->ai_addrlen);
     if (n <= 0) {
-      if (n == 0) {
+      if (n == 0)
         printf("OK: Finished reading nodes\n");
-      } else {
+      else
         perror("ERR: No response from the server"); // TODO: clean up
-      }
+
       break;
     }
 
-    // Parse the node
-    char *IP = strtok(response, " ");
-    char *TCP = strtok(NULL, " ");
+    buffer[n] = '\0'; // Null-terminate the received data
 
-    // Check if we need to resize the array
-    if (nodes->size == nodes->capacity) {
-      nodes->capacity *= 2;
-      nodes = realloc(nodes, nodes->capacity * sizeof(NetNode));
+    // Process each line in the buffer
+    ptr = strtok(buffer, "\n");
+    while (ptr != NULL) {
+      // If there is an incomplete line from the previous chunk, append the
+      // current part to it
+      if (line_len > 0) {
+        strncat(line, ptr, sizeof(line) - line_len - 1);
+        line_len = 0; // Reset the length of the incomplete line
+        ptr = line;   // Process the combined line
+      }
+
+      // Parse the node
+      char *IP = strtok(ptr, " ");
+      char *TCP = strtok(NULL, " ");
+
+      // If the IP or TCP is incomplete, store it in the line buffer and
+      // continue to the next chunk
+      if (IP == NULL || TCP == NULL) {
+        strncpy(line, ptr, sizeof(line) - 1);
+        line_len = strlen(line);
+        break;
+      }
+
+      // Check if we need to resize the array
+      if (nodes->size == nodes->capacity) {
+        nodes->capacity *= 2;
+        nodes = realloc(nodes, nodes->capacity * sizeof(NetNode));
+      }
+
+      // Add the node to the array
+      nodes[nodes->size].IP = strdup(IP);
+      nodes[nodes->size].TCP = strdup(TCP);
+      nodes->size++;
+
+      // Get the next line
+      ptr = strtok(NULL, "\n");
     }
-
-    // Add the node to the array
-    strcpy(nodes[nodes->size].IP, IP);
-    strcpy(nodes[nodes->size].TCP, TCP);
-    nodes->size++;
   }
 
   return nodes;
