@@ -47,31 +47,31 @@ int main(int argc, char *argv[]) {
   if (err = getaddrinfo(regIP, regUDP, &udp_hints, &udp), err != 0)
     return perror("FATAL: Failed to get address info"), 1;
 
-  /* Listen for TCP messages */
+  // TODO, Blueprint to connect to the adjacent nodes
 
-  struct addrinfo tcp_hints, *tcp;
-  int listenerfd /*, err*/;
-  struct sigaction sa;
+  // struct addrinfo tcp_hints, *tcp;
+  // int listenerfd /*, err*/;
+  // struct sigaction sa;
 
-  memset(&tcp_hints, 0, sizeof(tcp_hints));
-  tcp_hints.ai_family = AF_INET;
-  tcp_hints.ai_socktype = SOCK_STREAM;
-  tcp_hints.ai_flags = AI_PASSIVE;
+  // memset(&tcp_hints, 0, sizeof(tcp_hints));
+  // tcp_hints.ai_family = AF_INET;
+  // tcp_hints.ai_socktype = SOCK_STREAM;
+  // tcp_hints.ai_flags = AI_PASSIVE;
 
-  memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = SIG_IGN;
+  // memset(&sa, 0, sizeof(sa));
+  // sa.sa_handler = SIG_IGN;
 
-  if (sigaction(SIGPIPE, &sa, NULL) == -1)
-    return perror("FATAL: Failed to ignore SIGPIPE"), 1;
+  // if (sigaction(SIGPIPE, &sa, NULL) == -1)
+  //   return perror("FATAL: Failed to ignore SIGPIPE"), 1;
 
-  if (listenerfd = socket(AF_INET, SOCK_STREAM, 0), listenerfd != 0)
-    return perror("FATAL: Failed to create TCP socket"), 1;
+  // if (listenerfd = socket(AF_INET, SOCK_STREAM, 0), listenerfd != 0)
+  //   return perror("FATAL: Failed to create TCP socket"), 1;
 
-  if (err = getaddrinfo(IP, TCP, &tcp_hints, &tcp), err != 0)
-    return perror("FATAL: Failed to get address info"), 1;
+  // if (err = getaddrinfo(IP, TCP, &tcp_hints, &tcp), err != 0)
+  //   return perror("FATAL: Failed to get address info"), 1;
 
-  if (err = connect(serverfd, tcp->ai_addr, tcp->ai_addrlen), err != 0)
-    return perror("FATAL: Failed to connect to server"), 1;
+  // if (err = connect(serverfd, tcp->ai_addr, tcp->ai_addrlen), err != 0)
+  //   return perror("FATAL: Failed to connect to server"), 1;
 
   /* User Input */
 
@@ -88,9 +88,6 @@ int main(int argc, char *argv[]) {
 
   freeaddrinfo(udp);
   close(serverfd);
-
-  freeaddrinfo(tcp);
-  close(listenerfd);
 
   return 0;
 }
