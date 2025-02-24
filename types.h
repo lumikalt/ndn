@@ -39,13 +39,14 @@ typedef struct {
   // nodes
   usize size;
   usize capacity;
-} NetNode;
+} NodeList;
 
 typedef char *Object;
 
 typedef struct {
   Object *objects; // TODO: Make linked list
   Object *cache;
+  Object *interests;
 
   AdjacentNode *safeguard;
   AdjacentNode *external;
