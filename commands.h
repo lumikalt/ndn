@@ -6,22 +6,22 @@
 
 void ndn_help();
 
-void ndn_join(Server *s, u16 net);
+void ndn_join(Node *, u16 net);
 
-void ndn_direct_join(u16 net, char *connectIP, char *connectTCP);
+void ndn_direct_join(Node *, u16 net, char *connectIP, char *connectTCP);
 
-void ndn_create(const char *name);
+void ndn_create(Node *, const char *name);
 
-void ndn_delete(const char *name);
+void ndn_delete(Node *, const char *name);
 
-void ndn_retrieve(const char *name);
+void ndn_retrieve(Node *, const char *name);
 
-void ndn_show_topology();
+void ndn_show_topology(Node *);
 
-void ndn_show_names();
+void ndn_show_names(Node *);
 
-void ndn_show_interest_table();
+void ndn_show_interest_table(Node *);
 
-void ndn_leave();
+void ndn_leave(Node *);
 
-void ndn_exit();
+void ndn_exit(Node *);
