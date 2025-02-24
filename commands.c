@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 void ndn_help() {
+  
   printf("Commands:\n"
          "\t(h)  help - show this message\n"
          "\t(j)  join <net> - join the network (000-999)\n"
@@ -16,6 +17,7 @@ void ndn_help() {
          "\t(si) show_interest_table - show the interest table\n"
          "\t(l)  leave - leave the network\n"
          "\t(x)  exit - close the program\n");
+
 }
 
 void ndn_join(Node *node, u16 net) {}
