@@ -1,9 +1,9 @@
 #pragma once
 
 #include <netdb.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -17,17 +17,43 @@ typedef int32_t i32;
 typedef int64_t i64;
 
 typedef struct {
-    struct addrinfo *udp;
-    int serverfd;
+  struct addrinfo *udp;
+  int fd;
 
-    char *IP;
-    char *TCP;
+  char *IP;
+  char *TCP;
 } Server;
 
 typedef struct {
-    struct addrinfo *tcp;
-    int listenerfd;
+  struct addrinfo *tcp;
+  int listenerfd;
 
-    char *IP;
-    char *TCP;
-} Adjacencies;
+  usize node_index;
+} AdjacentNode;
+
+typedef struct {
+  char **IP;
+  char **TCP;
+
+  // Sadly this needs to be dynamic, the response doesn't include the number of
+  // nodes
+  usize size;
+  usize capacity;
+} NetNode;
+
+typedef char *Object;
+
+typedef struct {
+  Object *objects; // TODO: Make linked list
+  Object *cache;
+
+  AdjacentNode *safeguard;
+  AdjacentNode *external;
+  AdjacentNode **internal;
+
+  Server *server;
+
+  // self connection address
+  char *IP;
+  char *TCP;
+} Node;
