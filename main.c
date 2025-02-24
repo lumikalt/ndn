@@ -89,6 +89,5 @@ int main(int argc, char *argv[]) {
   freeaddrinfo(udp);
   close(serverfd);
 
-  printf("teste :p");
   return 0;
 }
