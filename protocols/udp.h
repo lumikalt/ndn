@@ -2,7 +2,7 @@
 
 #include "../types.h"
 
-NetNode *ndn_nodes(Server *s, u16 net);
+NodeList *ndn_nodes(Node *node, u16 net);
 
 void ndn_register(Node *node, u16 net);
 

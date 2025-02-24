@@ -6,8 +6,9 @@
 #include <string.h>
 
 /// Request the list of nodes in the network
-NetNode *ndn_nodes(Server *s, u16 net) {
-  NetNode *nodes = malloc(10 * sizeof(NetNode));
+NodeList *ndn_nodes(Node *node, u16 net) {
+  Server *s = node->server;
+  NodeList *nodes = malloc(10 * sizeof(NodeList));
   nodes->size = 0;
   nodes->capacity = 10;
 
