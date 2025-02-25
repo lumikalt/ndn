@@ -28,7 +28,7 @@ void ndn_help() {
 }
 
 void ndn_join(Node *node, u16 net) {
-  NetNode *network = ndn_nodes(node->server, net);
+  NodeList *network = ndn_nodes((Node *)node->server, net);
   struct addrinfo hints, *res;
 
   if (network->size == 0) {
@@ -69,7 +69,8 @@ void ndn_join(Node *node, u16 net) {
       close(sockfd);
       return;
     }
-  }}
+  }
+}
 
 void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
   printf("Directly joining network %d, linking to %s:%s\n", net, connectIP,
