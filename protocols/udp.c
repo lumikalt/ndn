@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /// Request the list of nodes in the network
 NodeList *ndn_nodes(Node *node, u16 net) {
@@ -82,6 +83,7 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 }
 
 
+
 /// Register the node in the network, and check if the server accepted the node
 /// entry.
 void ndn_register(Node *node, u16 net) {
@@ -96,6 +98,7 @@ void ndn_register(Node *node, u16 net) {
   else
     printf("OK: Requested join to net %03d\n", net);
 
+
   /* Wait for the OK */
 
   const char *ok = "OKREG";
@@ -107,6 +110,10 @@ void ndn_register(Node *node, u16 net) {
     printf("ERR: Server refused the connection to net %03d\n", net);
   else
     printf("OK: Successfully joined network %d\n", net);
+
+
+
+
 }
 
 /// Unregister the node from the network, and check if the server accepted the

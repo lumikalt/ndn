@@ -1,7 +1,14 @@
 #include "./commands.h"
 #include "./types.h"
+#include "protocols/udp.h"
+
+
+
 
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 void ndn_help() {
   
@@ -20,7 +27,49 @@ void ndn_help() {
 
 }
 
-void ndn_join(Node *node, u16 net) {}
+void ndn_join(Node *node, u16 net) {
+  NetNode *network = ndn_nodes(node->server, net);
+  struct addrinfo hints, *res;
+
+  if (network->size == 0) {
+    printf("Node list is empty, this node is now the first node\n");
+  } else {
+    // Connect to a random node in the network
+    int node_id = rand() % network->size;
+    char *node_ip = network->IP[node_id];
+    char *node_tcp = network->TCP[node_id];
+
+    printf("Trying to connect to node %s , %s\n", node_ip, node_tcp);
+
+
+    //TCP port string to integer
+    int node_port = atoi(node_tcp);
+    if (node_port <= 0) {
+      return;
+    }
+
+    //create TCP socket
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+      printf("Failed to create socket");
+      return;
+    }
+
+
+
+    //node setup
+    struct sockaddr_in node_addr;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+
+    if (connect(sockfd, (struct sockaddr *)&node_addr, sizeof(node_addr)) < 0) {
+      printf("Connection to nearby node failed");
+      close(sockfd);
+      return;
+    }
+  }}
 
 void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
   printf("Directly joining network %d, linking to %s:%s\n", net, connectIP,
