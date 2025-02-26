@@ -111,9 +111,6 @@ void ndn_register(Node *node, u16 net) {
   else
     printf("OK: Successfully joined network %d\n", net);
 
-
-
-
 }
 
 /// Unregister the node from the network, and check if the server accepted the

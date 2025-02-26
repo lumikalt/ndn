@@ -18,7 +18,7 @@ void ndn_help() {
          "\t(dj) direct join <net> <IP> <TCP> - directly join a network\n"
          "\t(c)  create <name> - create an object\n"
          "\t(dl) delete <name> - delete an object\n"
-         "\t(r)  retrieve <name> - retrieve an object\n"
+         "\t(r)  retrieve <name> - re<trieve an object\n"
          "\t(st) show_topology - show the neighbourhood's topology\n"
          "\t(sn) show_names - show the object names in this node\n"
          "\t(si) show_interest_table - show the interest table\n"
@@ -98,3 +98,4 @@ void ndn_show_interest_table(Node *node) { printf("Showing interest table\n"); }
 void ndn_leave(Node *node) { printf("Leaving network\n"); }
 
 void ndn_exit(Node *node) { printf("Exiting program\n"); }
+

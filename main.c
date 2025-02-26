@@ -1,5 +1,6 @@
 // #include "./input.h"
 #include "./types.h"
+#include "util.h"
 
 #include <arpa/inet.h>
 #include <netdb.h> // for AI_PASSIVE
@@ -36,6 +37,7 @@ int main(int argc, char *argv[]) {
 
   struct addrinfo udp_hints, *udp;
   int serverfd, err;
+  int listener_fd;
 
   memset(&udp_hints, 0, sizeof(udp_hints));
   udp_hints.ai_family = AF_INET;
@@ -63,6 +65,64 @@ int main(int argc, char *argv[]) {
 
   if (sigaction(SIGPIPE, &sa, NULL) == -1)
     return perror("FATAL: Failed to ignore SIGPIPE"), 1;
+
+
+  if ((listener_fd = socket(udp->ai_family, udp->ai_socktype, udp->ai_protocol)) == -1) {
+    perror("socket");
+    exit(1);
+  }
+
+
+  if (bind(listener_fd, udp->ai_addr, udp->ai_addrlen) == -1) {
+    perror("bind");
+    exit(1);
+  }
+
+  // No longer needed, so we free the structure
+  freeaddrinfo(udp);
+
+  // Start listening for incoming connections
+  if (listen(listener_fd, 5) == -1) {
+    perror("listen");
+    exit(1);
+  }
+
+  printf("Server is listening on port %s...\n", regUDP);
+
+  // fd_set master_fds, read_fds; // File descriptor sets
+  // int max_fd,counter;
+  // FD_ZERO(&master_fds);
+  // FD_SET(listener_fd, &master_fds);
+  // max_fd = listener_fd;
+
+  fd_set read_fds;
+  int bytes_read, max_fd = listener_fd;
+  char buffer[128];
+
+
+  //loop waiting in case of an input
+  while (1) {
+    FD_ZERO(&read_fds);
+    FD_SET(listener_fd, &read_fds);
+    FD_SET(STDIN_FILENO, &read_fds);
+
+    if (select(max_fd + 1, &read_fds, NULL, NULL, NULL) == -1) {
+      perror("select");
+      exit(1);
+    }
+
+    if (FD_ISSET(STDIN_FILENO, &read_fds)) {
+      if ((bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer)-1)) <= 0) {
+        perror("read");
+        continue;
+      }
+      buffer[bytes_read] = '\0';
+      buffer[strcspn(buffer, "\n")] = '\0';
+
+      //check if the parameters of the input are valid
+      process_input_commands(buffer);
+    }
+  }
 
   // if (listenerfd = socket(AF_INET, SOCK_STREAM, 0), listenerfd != 0)
   //   return perror("FATAL: Failed to create TCP socket"), 1;
