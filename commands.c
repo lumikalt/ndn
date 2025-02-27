@@ -2,16 +2,13 @@
 #include "./types.h"
 #include "protocols/udp.h"
 
-
-
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdlib.h>
 
 void ndn_help() {
-  
+
   printf("Commands:\n"
          "\t(h)  help - show this message\n"
          "\t(j)  join <net> - join the network (000-999)\n"
@@ -24,7 +21,6 @@ void ndn_help() {
          "\t(si) show_interest_table - show the interest table\n"
          "\t(l)  leave - leave the network\n"
          "\t(x)  exit - close the program\n");
-
 }
 
 void ndn_join(Node *node, u16 net) {
@@ -41,28 +37,24 @@ void ndn_join(Node *node, u16 net) {
 
     printf("Trying to connect to node %s , %s\n", node_ip, node_tcp);
 
-
-    //TCP port string to integer
+    // TCP port string to integer
     int node_port = atoi(node_tcp);
     if (node_port <= 0) {
       return;
     }
 
-    //create TCP socket
+    // create TCP socket
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
       printf("Failed to create socket");
       return;
     }
 
-
-
-    //node setup
+    // node setup
     struct sockaddr_in node_addr;
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-
 
     if (connect(sockfd, (struct sockaddr *)&node_addr, sizeof(node_addr)) < 0) {
       printf("Connection to nearby node failed");
@@ -98,4 +90,3 @@ void ndn_show_interest_table(Node *node) { printf("Showing interest table\n"); }
 void ndn_leave(Node *node) { printf("Leaving network\n"); }
 
 void ndn_exit(Node *node) { printf("Exiting program\n"); }
-
