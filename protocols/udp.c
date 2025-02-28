@@ -95,7 +95,7 @@ void ndn_register(Node *node, u16 net) {
   sprintf(buffer, "REG %03d %s %s", net, s->IP, s->TCP);
 
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->udp->ai_addr,
-                 s->udp->ai_addrlen)) <= 0)
+                  s->udp->ai_addrlen)) <= 0)
     perror("ERR: Failed to send the join request"); // TODO: clean up
   else
     printf("OK: Requested join to net %03d\n", net);

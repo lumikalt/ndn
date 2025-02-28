@@ -2,7 +2,7 @@
 
 #include "util.h"
 #include <arpa/inet.h>
-#include <netdb.h> // for AI_PASSIVE
+#include <netdb.h>
 #include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -12,28 +12,27 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-
 int main(int argc, char *argv[]) {
   if (argc < 4)
     return printf("Usage: %s <cache> <IP> <TCP> [regIP=193.136.138.142] "
-    "[regUDP=59000]\n"
-    "  cache  - size of the node cache\n"
-    "  IP     - IP address of the server\n"
-    "  TCP    - TCP port to listen on\n"
-    "  regIP  - IP address of the node\n"
-    "  regUDP - UDP port of the node\n",
-    argv[0]),
-    1;
+                  "[regUDP=59000]\n"
+                  "  cache  - size of the node cache\n"
+                  "  IP     - IP address of the server\n"
+                  "  TCP    - TCP port to listen on\n"
+                  "  regIP  - IP address of the node\n"
+                  "  regUDP - UDP port of the node\n",
+                  argv[0]),
+           1;
 
   /* Connect via UDP to the server */
 
   usize cache = atoi(argv[1]);
   char *IP = argv[2];
   char *TCP = argv[3];
-  char *regIP = argc > 4 ? argv[4] : INADDR_ANY; //"193.136.138.142"; //NOTE: foi so para
+  char *regIP =
+      argc > 4 ? argv[4] : INADDR_ANY; //"193.136.138.142"; //NOTE: foi so para
   // debug, depois tiro
   char *regUDP = argc > 5 ? argv[5] : "59000";
-
 
   struct addrinfo udp_hints, *udp;
   int serverfd, listener_fd, err;
@@ -52,22 +51,22 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  if ((listener_fd = socket(udp->ai_family, udp->ai_socktype, udp->ai_protocol)) == -1)
+  if ((listener_fd =
+           socket(udp->ai_family, udp->ai_socktype, udp->ai_protocol)) == -1)
     return perror("socket"), 1;
-
 
   if (bind(listener_fd, udp->ai_addr, udp->ai_addrlen) == -1)
     return perror("bind"), 1;
 
-/* wooooo
-  struct sigaction sa;
-  memset(&sa, 0, sizeof(sa));
-  sa.sa_handler = SIG_IGN;
-  sigaction(SIGPIPE, &sa, NULL);
+  /* wooooo
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = SIG_IGN;
+    sigaction(SIGPIPE, &sa, NULL);
 
-  if (sigaction(SIGPIPE, &sa, NULL) == -1)
-    return perror("FATAL: Failed to ignore SIGPIPE"), 1;
-*/
+    if (sigaction(SIGPIPE, &sa, NULL) == -1)
+      return perror("FATAL: Failed to ignore SIGPIPE"), 1;
+  */
 
   printf("Server is listening on port %s...\n", regUDP);
 
@@ -88,37 +87,37 @@ int main(int argc, char *argv[]) {
     int result = select(listener_fd + 1, &testfds, NULL, NULL, &timeout);
 
     switch (result) {
-      case 0:
-         printf("\n----------------Timeout event----------------\n");
-        break;
-      case -1:
-        perror("select fail");
-        exit(1);
-      default:
-        if (FD_ISSET(STDIN_FILENO, &testfds)) {
-          if (fgets(buffer, sizeof(buffer), stdin)) {
-            buffer[strcspn(buffer, "\n")] = '\0';
-            process_input_commands(buffer);
-            if (strcmp(buffer, "_STOP_") == 0) {
-              printf("Terminating\n");
-              exit(0);
-            }
+    case 0:
+      printf("\n----------------Timeout event----------------\n");
+      break;
+    case -1:
+      perror("select fail");
+      exit(1);
+    default:
+      if (FD_ISSET(STDIN_FILENO, &testfds)) {
+        if (fgets(buffer, sizeof(buffer), stdin)) {
+          buffer[strcspn(buffer, "\n")] = '\0';
+          process_input_commands(buffer);
+          if (strcmp(buffer, "_STOP_") == 0) {
+            printf("Terminating\n");
+            exit(0);
           }
         }
-        if (FD_ISSET(listener_fd, &testfds)) {
-          struct sockaddr_in udp_useraddr;
-          socklen_t addrlen = sizeof(udp_useraddr);
-          int ret = recvfrom(listener_fd, buffer, sizeof(buffer) - 1, 0,
-                             (struct sockaddr *)&udp_useraddr, &addrlen);
-          if (ret > 0) {
-            buffer[ret] = '\0';
-            printf("UDP Message: %s\n", buffer);
-            if (strcmp(buffer, "_STOP_") == 0) {
-              printf("Terminating\n");
-              exit(0);
-            }
+      }
+      if (FD_ISSET(listener_fd, &testfds)) {
+        struct sockaddr_in udp_useraddr;
+        socklen_t addrlen = sizeof(udp_useraddr);
+        int ret = recvfrom(listener_fd, buffer, sizeof(buffer) - 1, 0,
+                           (struct sockaddr *)&udp_useraddr, &addrlen);
+        if (ret > 0) {
+          buffer[ret] = '\0';
+          printf("UDP Message: %s\n", buffer);
+          if (strcmp(buffer, "_STOP_") == 0) {
+            printf("Terminating\n");
+            exit(0);
           }
         }
+      }
     }
   }
 
@@ -126,9 +125,5 @@ int main(int argc, char *argv[]) {
   close(serverfd);
   close(listener_fd);
 
-
-
-
   return 0;
 }
-
