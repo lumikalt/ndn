@@ -20,8 +20,6 @@ typedef int64_t i64;
 typedef struct {
   struct addrinfo *addr;
   int fd;
-  char *ip;
-  char *tcp;
 } Server;
 
 typedef struct {
