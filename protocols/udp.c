@@ -92,7 +92,7 @@ void ndn_register(Node *node, u16 net) {
   char buffer[256];
   Server *s = node->server;
 
-  sprintf(buffer, "REG %03d %s %s", net, s->ip, s->tcp);
+  sprintf(buffer, "REG %03d %s %s", net, node->ip, node->tcp);
 
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0)
@@ -122,7 +122,7 @@ void ndn_unregister(Node *node, u16 net) {
   char buffer[256];
   Server *s = node->server;
 
-  sprintf(buffer, "UNREG %03d %s %s", net, s->ip, s->tcp);
+  sprintf(buffer, "UNREG %03d %s %s", net, node->ip, node->tcp);
 
   if (n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
                  s->addr->ai_addrlen),
