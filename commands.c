@@ -1,5 +1,6 @@
 #include "./commands.h"
 #include "./types.h"
+#include "list.h"
 #include "protocols/udp.h"
 
 #include <stdio.h>
@@ -71,6 +72,11 @@ void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
 
 void ndn_create(Node *node, const char *name) {
   printf("Creating object %s\n", name);
+
+  Object object = malloc(strlen(name) + 1);
+  strcpy(object, name);
+
+  list_add(node->objects, object);
 }
 
 void ndn_delete(Node *node, const char *name) {
@@ -83,7 +89,18 @@ void ndn_retrieve(Node *node, const char *name) {
 
 void ndn_show_topology(Node *node) { printf("Showing network topology\n"); }
 
-void ndn_show_names(Node *node) { printf("Showing object names\n"); }
+void ndn_show_names(Node *node) {
+  printf("Owned Objects:\n");
+  list_print(node->objects);
+
+  // print the cache
+  printf("Cached:\n");
+  for (usize i = 0; i < node->cache_size; i++) {
+    if (node->cache[i] != NULL) {
+      printf("\t%s\n", node->cache[i]);
+    }
+  }
+}
 
 void ndn_show_interest_table(Node *node) { printf("Showing interest table\n"); }
 
