@@ -18,9 +18,8 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   sprintf(buffer, "NODES %03d", net);
 
-  if (n = sendto(s->fd, buffer, strlen(buffer), 0, s->udp->ai_addr,
-                 s->udp->ai_addrlen),
-      n <= 0)
+  if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->udp->ai_addr,
+                  s->udp->ai_addrlen)) <= 0)
     perror("ERR: Failed to send the NODES request"); // TODO: clean up
   else
     printf("OK: Requested nodes for net %03d\n", net);
@@ -31,9 +30,8 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   sprintf(ok, "NODESLIST %03d\n", net);
 
   char response[15];
-  if (n = recvfrom(s->fd, response, sizeof(response), 0, s->udp->ai_addr,
-                   &s->udp->ai_addrlen),
-      n <= 0)
+  if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->udp->ai_addr,
+                    &s->udp->ai_addrlen)) <= 0)
     perror("ERR: No response from the server"); // TODO: clean up
   else if (strncmp(response, ok, 15) != 0)
     printf("ERR: Server response did not match the spec");
@@ -75,8 +73,8 @@ NodeList *ndn_nodes(Node *node, u16 net) {
         nodes->TCP = realloc(nodes->TCP, nodes->capacity * sizeof(char *));
       }
 
-      nodes->IP[i] = malloc(16);
-      nodes->TCP[i] = malloc(6);
+      nodes->IP[i] = malloc(256);
+      nodes->TCP[i] = malloc(10);
 
       sscanf(buffer, "%s %s", nodes->IP[i], nodes->TCP[i]);
 
@@ -96,9 +94,8 @@ void ndn_register(Node *node, u16 net) {
 
   sprintf(buffer, "REG %03d %s %s", net, s->IP, s->TCP);
 
-  if (n = sendto(s->fd, buffer, sizeof(buffer), 0, s->udp->ai_addr,
-                 s->udp->ai_addrlen),
-      n <= 0)
+  if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->udp->ai_addr,
+                 s->udp->ai_addrlen)) <= 0)
     perror("ERR: Failed to send the join request"); // TODO: clean up
   else
     printf("OK: Requested join to net %03d\n", net);
