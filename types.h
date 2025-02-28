@@ -1,5 +1,6 @@
 #pragma once
 
+#include "list.h"
 #include <netdb.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -44,9 +45,10 @@ typedef struct {
 typedef char *Object;
 
 typedef struct {
-  Object *objects; // TODO: Make linked list
+  ObjectList *objects;
+  ObjectList *interests;
   Object *cache;
-  Object *interests;
+  usize cache_size;
 
   AdjacentNode *safeguard;
   AdjacentNode *external;
