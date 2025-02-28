@@ -1,5 +1,6 @@
 // #include "./input.h"
 #include "./types.h"
+#include "util.h"
 
 #include <arpa/inet.h>
 #include <netdb.h> // for AI_PASSIVE
@@ -129,6 +130,8 @@ int main(int argc, char *argv[]) {
       if (FD_ISSET(0, &testfds)) {
         fgets(buffer, 50, stdin);
         printf("\nInput at keyboard: %s\n", buffer);
+        //check if the parameters of the input are valid
+        process_input_commands(buffer);
         if (!memcmp(buffer, "_STOP_", 5)) {
           write(1, "Terminating\n", 12);
           exit(0);
