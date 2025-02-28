@@ -1,7 +1,7 @@
-#include "./commands.h"
-#include "./types.h"
+#include "commands.h"
 #include "list.h"
 #include "protocols/udp.h"
+#include "types.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,18 +25,20 @@ void ndn_help() {
 }
 
 void ndn_join(Node *node, u16 net) {
+  printf("Joining network %03d\n", net);
+
   NodeList *network = ndn_nodes((Node *)node->server, net);
   struct addrinfo hints, *res;
 
   if (network->size == 0) {
-    printf("Node list is empty, this node is now the first node\n");
+    printf("Lone node, waiting for others\n");
   } else {
     // Connect to a random node in the network
     int node_id = rand() % network->size;
-    char *node_ip = network->IP[node_id];
-    char *node_tcp = network->TCP[node_id];
+    char *node_ip = network->ip[node_id];
+    char *node_tcp = network->tcp[node_id];
 
-    printf("Trying to connect to node %s , %s\n", node_ip, node_tcp);
+    printf("Attempting connection to %s:%s\n", node_ip, node_tcp);
 
     // TCP port string to integer
     int node_port = atoi(node_tcp);
@@ -63,6 +65,10 @@ void ndn_join(Node *node, u16 net) {
       return;
     }
   }
+
+  ndn_register(node, net);
+
+  freeaddrinfo(res);
 }
 
 void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
@@ -76,21 +82,33 @@ void ndn_create(Node *node, const char *name) {
   Object object = malloc(strlen(name) + 1);
   strcpy(object, name);
 
-  list_add(node->objects, object);
+  list_add(node->objects, object, -1);
 }
 
 void ndn_delete(Node *node, const char *name) {
   printf("Deleting object %s\n", name);
+
+  list_remove(node->objects, (char *)name);
 }
 
 void ndn_retrieve(Node *node, const char *name) {
   printf("Retrieving object %s\n", name);
+
+  ObjectList *object = list_find(node->objects, (char *)name);
+  if (object != NULL) {
+    printf("Already in node\n");
+    return;
+  }
+
+  printf("Not in node, requesting to adjacent nodes\n");
+
+  // TODO: Send interest to adjacent nodes
 }
 
 void ndn_show_topology(Node *node) { printf("Showing network topology\n"); }
 
 void ndn_show_names(Node *node) {
-  printf("Owned Objects:\n");
+  printf("Owned:\n");
   list_print(node->objects);
 
   // print the cache

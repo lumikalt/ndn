@@ -18,8 +18,8 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   sprintf(buffer, "NODES %03d", net);
 
-  if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->udp->ai_addr,
-                  s->udp->ai_addrlen)) <= 0)
+  if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
+                  s->addr->ai_addrlen)) <= 0)
     perror("ERR: Failed to send the NODES request"); // TODO: clean up
   else
     printf("OK: Requested nodes for net %03d\n", net);
@@ -30,8 +30,8 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   sprintf(ok, "NODESLIST %03d\n", net);
 
   char response[15];
-  if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->udp->ai_addr,
-                    &s->udp->ai_addrlen)) <= 0)
+  if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
+                    &s->addr->ai_addrlen)) <= 0)
     perror("ERR: No response from the server"); // TODO: clean up
   else if (strncmp(response, ok, 15) != 0)
     printf("ERR: Server response did not match the spec");
@@ -47,8 +47,8 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   usize i = 0;
   while (true) {
     // Check if there are no more bytes to read
-    n = recvfrom(s->fd, buffer, sizeof(buffer) - 1, 0, s->udp->ai_addr,
-                 &s->udp->ai_addrlen);
+    n = recvfrom(s->fd, buffer, sizeof(buffer) - 1, 0, s->addr->ai_addr,
+                 &s->addr->ai_addrlen);
     if (n <= 0) {
       if (n == 0)
         printf("OK: Finished reading nodes\n");
@@ -69,14 +69,14 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
       if (i > nodes->capacity) {
         nodes->capacity *= 2;
-        nodes->IP = realloc(nodes->IP, nodes->capacity * sizeof(char *));
-        nodes->TCP = realloc(nodes->TCP, nodes->capacity * sizeof(char *));
+        nodes->ip = realloc(nodes->ip, nodes->capacity * sizeof(char *));
+        nodes->tcp = realloc(nodes->tcp, nodes->capacity * sizeof(char *));
       }
 
-      nodes->IP[i] = malloc(256);
-      nodes->TCP[i] = malloc(10);
+      nodes->ip[i] = malloc(256);
+      nodes->tcp[i] = malloc(10);
 
-      sscanf(buffer, "%s %s", nodes->IP[i], nodes->TCP[i]);
+      sscanf(buffer, "%s %s", nodes->ip[i], nodes->tcp[i]);
 
       i++;
     }
@@ -92,10 +92,10 @@ void ndn_register(Node *node, u16 net) {
   char buffer[256];
   Server *s = node->server;
 
-  sprintf(buffer, "REG %03d %s %s", net, s->IP, s->TCP);
+  sprintf(buffer, "REG %03d %s %s", net, s->ip, s->tcp);
 
-  if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->udp->ai_addr,
-                  s->udp->ai_addrlen)) <= 0)
+  if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
+                  s->addr->ai_addrlen)) <= 0)
     perror("ERR: Failed to send the join request"); // TODO: clean up
   else
     printf("OK: Requested join to net %03d\n", net);
@@ -105,8 +105,8 @@ void ndn_register(Node *node, u16 net) {
   const char *ok = "OKREG";
   char response[6];
 
-  if (n = recvfrom(s->fd, response, sizeof(response), 0, s->udp->ai_addr,
-                   &s->udp->ai_addrlen),
+  if (n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
+                   &s->addr->ai_addrlen),
       n <= 0)
     perror("ERR: No response from the server"); // TODO: clean up
   else if (strncmp(response, ok, 6) != 0)
@@ -122,10 +122,10 @@ void ndn_unregister(Node *node, u16 net) {
   char buffer[256];
   Server *s = node->server;
 
-  sprintf(buffer, "UNREG %03d %s %s", net, s->IP, s->TCP);
+  sprintf(buffer, "UNREG %03d %s %s", net, s->ip, s->tcp);
 
-  if (n = sendto(s->fd, buffer, sizeof(buffer), 0, s->udp->ai_addr,
-                 s->udp->ai_addrlen),
+  if (n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
+                 s->addr->ai_addrlen),
       n <= 0)
     perror("ERR: Failed to send the leave request"); // TODO: clean up
   else
@@ -136,8 +136,8 @@ void ndn_unregister(Node *node, u16 net) {
   const char *ok = "OKUNREG";
   char response[8];
 
-  if (n = recvfrom(s->fd, response, sizeof(response), 0, s->udp->ai_addr,
-                   &s->udp->ai_addrlen),
+  if (n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
+                   &s->addr->ai_addrlen),
       n <= 0)
     perror("ERR: No response from the server"); // TODO: clean up
   else if (strncmp(response, ok, 8) != 0)

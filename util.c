@@ -1,5 +1,36 @@
 #include "util.h"
 
+#include <netdb.h>
+#include <unistd.h>
+
+void clean_node(Node *node) {
+  list_destroy(node->objects);
+  list_destroy(node->interests);
+  free(node->cache);
+  free(node->network->ip);
+  free(node->network->tcp);
+  free(node->network);
+  free(node->safeguard->addr);
+  close(node->safeguard->fd);
+  freeaddrinfo(node->safeguard->addr);
+  free(node->safeguard);
+  freeaddrinfo(node->external->addr);
+  close(node->external->fd);
+  free(node->external);
+  for (usize i = 0; i < node->network->size; i++) {
+    freeaddrinfo(node->internal[i]->addr);
+    // clean the file descriptors
+    close(node->internal[i]->fd);
+    free(node->internal[i]);
+  }
+  free(node->internal);
+  freeaddrinfo(node->server->addr);
+  free(node->server);
+  free(node->ip);
+  free(node->tcp);
+  free(node);
+}
+
 usize str_char_count(const char *s, char c) {
   usize count = 0;
   for (usize i = 0; s[i]; s[i] == c ? count++, i++ : i++)

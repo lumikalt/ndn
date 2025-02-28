@@ -18,26 +18,22 @@ typedef int32_t i32;
 typedef int64_t i64;
 
 typedef struct {
-  struct addrinfo *udp;
+  struct addrinfo *addr;
   int fd;
-
-  char *IP;
-  char *TCP;
 } Server;
 
 typedef struct {
-  struct addrinfo *tcp;
-  int listenerfd;
+  struct addrinfo *addr;
+  int fd;
 
   usize node_index;
 } AdjacentNode;
 
 typedef struct {
-  char **IP;
-  char **TCP;
+  char **ip;
+  char **tcp;
 
-  // Sadly this needs to be dynamic, the response doesn't include the number of
-  // nodes
+  // Ugly
   usize size;
   usize capacity;
 } NodeList;
@@ -50,13 +46,14 @@ typedef struct {
   Object *cache;
   usize cache_size;
 
+  NodeList *network;
   AdjacentNode *safeguard;
   AdjacentNode *external;
   AdjacentNode **internal;
 
   Server *server;
 
-  // self connection address
-  char *IP;
-  char *TCP;
+  // self address
+  char *ip;
+  char *tcp;
 } Node;

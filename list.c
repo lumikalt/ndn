@@ -1,21 +1,27 @@
 #include "list.h"
+#include "types.h"
+
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 ObjectList *list_create() {
   ObjectList *list = malloc(sizeof(ObjectList));
   list->self = NULL;
+  list->interested_node = -1;
   list->next = NULL;
   return list;
 }
 
-void list_add(ObjectList *list, Object object) {
+void list_add(ObjectList *list, Object object, int interested_node) {
   ObjectList *current = list;
   while (current->next != NULL) {
     current = current->next;
   }
   current->next = malloc(sizeof(ObjectList));
   current->next->self = object;
+  current->next->interested_node = interested_node; // Set the new member
   current->next->next = NULL;
 }
 
@@ -44,16 +50,26 @@ void list_destroy(ObjectList *list) {
 void list_print(ObjectList *list) {
   ObjectList *current = list;
   while (current->next != NULL) {
-    printf("\t%s\n", current->next->self);
+    printf("\t%s (Network Index: %zu)\n", current->next->self,
+           current->next->interested_node);
     current = current->next;
   }
 }
 
-Object list_find(ObjectList *list, Object object) {
+void list_print_interests(NodeList *nodes, ObjectList *list) {
+  ObjectList *current = list;
+  while (current->next != NULL) {
+    printf("\t%s:%s\t%s\n", nodes->ip[current->next->interested_node],
+           nodes->tcp[current->next->interested_node], current->next->self);
+    current = current->next;
+  }
+}
+
+ObjectList *list_find(ObjectList *list, Object object) {
   ObjectList *current = list;
   while (current->next != NULL) {
     if (current->next->self == object) {
-      return current->next->self;
+      return current->next;
     }
     current = current->next;
   }
