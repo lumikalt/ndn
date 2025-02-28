@@ -1,16 +1,16 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=gnu99
 LDFLAGS = -lpthread
-SRC = $(wildcard *.c)
+SRC = $(wildcard *.c) $(wildcard protocols/*.c)
 OBJ = $(SRC:.c=.o)
 EXEC = ndn
 
 all: $(EXEC)
 OBJDIR = obj
-OBJ = $(addprefix $(OBJDIR)/, $(SRC:.c=.o))
+OBJ = $(patsubst %.c, $(OBJDIR)/%.o, $(SRC))
 
 $(OBJDIR)/%.o: %.c
-	@mkdir -p $(OBJDIR)
+	@mkdir -p $(dir $@)   # Ensure subdirectories exist
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(EXEC): $(OBJ)
