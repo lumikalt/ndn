@@ -124,9 +124,8 @@ void ndn_unregister(Node *node, u16 net) {
 
   sprintf(buffer, "UNREG %03d %s %s", net, node->ip, node->tcp);
 
-  if (n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
-                 s->addr->ai_addrlen),
-      n <= 0)
+  if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
+                  s->addr->ai_addrlen)) <= 0)
     perror("ERR: Failed to send the leave request"); // TODO: clean up
   else
     printf("OK: Requested leave from net %03d\n", net);
@@ -136,9 +135,8 @@ void ndn_unregister(Node *node, u16 net) {
   const char *ok = "OKUNREG";
   char response[8];
 
-  if (n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
-                   &s->addr->ai_addrlen),
-      n <= 0)
+  if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
+                    &s->addr->ai_addrlen)) <= 0)
     perror("ERR: No response from the server"); // TODO: clean up
   else if (strncmp(response, ok, 8) != 0)
     printf("ERR: Server refused the connection to net %03d\n", net);
