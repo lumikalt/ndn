@@ -85,19 +85,17 @@ void process_input_commands(char *input) {
   //----------
 
   //---direct join---
-  if ((sscanf(input, "direct join %3s %15s %5s%n", net, ip, port, &pos) == 3 &&
-       input[pos] == '\0') ||
-      (sscanf(input, "dj %3s %15s %5s%n", net, ip, port, &pos) == 3 &&
-       input[pos] == '\0')) {
+  if ((sscanf(input, "direct join %15s %5s%n", ip, port, &pos) == 2 &&
+    input[pos] == '\0') ||
+    (sscanf(input, "dj %15s %5s%n", ip, port, &pos) == 2 &&
+    input[pos] == '\0')) {
 
-    if (!is_valid_net(net)) {
-      printf("Invalid network ID\n");
-    } else if (!is_valid_ip(ip)) {
+    if (!is_valid_ip(ip)) {
       printf("Invalid IP address\n");
     } else if (!is_valid_port(port)) {
       printf("Invalid port number\n");
     } else {
-      printf("Direct joining %s via %s:%s\n", net, ip, port);
+      printf("Direct joining via %s:%s\n", ip, port);
 
       if (strcmp(ip, "0.0.0.0") == 0) {
         printf("Created new network\n");
