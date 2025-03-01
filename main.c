@@ -1,7 +1,6 @@
 // #include "./input.h"
 
 #include "input.h"
-#include "util.h"
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pthread.h>
@@ -79,8 +78,21 @@ int main(int argc, char *argv[]) {
   FD_SET(STDIN_FILENO, &read_fds); // add the keyboard to the set
   FD_SET(listener_fd, &read_fds);  // add a fd to the set
 
+  //Node init
+  Node node;
+  node.ip = IP;
+  node.tcp = TCP;
+  node.cache_size = cache;
+  node.server = malloc(sizeof(Server));
+  if (node.server == NULL) {
+    perror("Memory allocation fail");
+    return 1;
+  }
+  node.server->fd = listener_fd;
+  node.server->addr = udp;
 
-  user_in(&read_fds, listener_fd);
+  user_in(&node, &read_fds, listener_fd);
+  //user_in(&read_fds, listener_fd);
 
 
 

@@ -1,4 +1,5 @@
 #include "util.h"
+#include "commands.h"
 
 #include <netdb.h>
 #include <unistd.h>
@@ -66,7 +67,7 @@ int is_valid_name(char *name) {
   return 1;
 }
 
-void process_input_commands(char *input) {
+void process_input_commands(Node* node ,char *input) {
   char net[4], ip[16], port[6], name[101];
   int pos;
 
@@ -79,6 +80,7 @@ void process_input_commands(char *input) {
       return;
     }
 
+    ndn_join(node, atoi(net) );
     printf("Joining network %s...\n", net);
     return;
   }

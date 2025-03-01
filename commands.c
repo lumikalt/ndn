@@ -29,7 +29,7 @@ void ndn_join(Node *node, u16 net) {
 
   NodeList *network = ndn_nodes((Node *)node->server, net);
   struct addrinfo hints, *res;
-
+  printf("\nabc\n");
   if (network->size == 0) {
     printf("Lone node, waiting for others\n");
   } else {

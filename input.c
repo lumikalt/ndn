@@ -11,7 +11,7 @@
 
 
 
-void user_in(fd_set *read_fds, int listener_fd) {
+void user_in(Node* node, fd_set *read_fds, int listener_fd) {
     char buffer[128];
     fd_set testfds;
     struct timeval timeout;
@@ -34,7 +34,7 @@ void user_in(fd_set *read_fds, int listener_fd) {
                 if (FD_ISSET(STDIN_FILENO, &testfds)) {
                     if (fgets(buffer, sizeof(buffer), stdin)) {
                         buffer[strcspn(buffer, "\n")] = '\0';
-                        process_input_commands(buffer);
+                        process_input_commands(node , buffer);
                         if (strcmp(buffer, "_STOP_") == 0) {
                             printf("Terminating\n");
                             exit(0);
