@@ -101,6 +101,7 @@ void process_input_commands(char *input) {
         printf("Created new network\n");
       }
     }
+
     return;
   }
 
