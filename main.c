@@ -1,5 +1,6 @@
 // #include "./input.h"
 
+#include "input.h"
 #include "util.h"
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -70,56 +71,18 @@ int main(int argc, char *argv[]) {
 
   printf("Server is listening on port %s...\n", regUDP);
 
-  fd_set read_fds, testfds;
-  struct timeval timeout;
-  char buffer[128];
+  fd_set read_fds;
+  //struct timeval timeout;
+  //char buffer[128];
 
   FD_ZERO(&read_fds);              // to clear the set of discriptiors
   FD_SET(STDIN_FILENO, &read_fds); // add the keyboard to the set
   FD_SET(listener_fd, &read_fds);  // add a fd to the set
 
-  // loop waiting in case of an input
-  while (1) {
-    testfds = read_fds;
-    timeout.tv_sec = 10;
-    timeout.tv_usec = 0;
 
-    int result = select(listener_fd + 1, &testfds, NULL, NULL, &timeout);
+  user_in(&read_fds, listener_fd);
 
-    switch (result) {
-    case 0:
-      printf("\n----------------Timeout event----------------\n");
-      break;
-    case -1:
-      perror("select fail");
-      exit(1);
-    default:
-      if (FD_ISSET(STDIN_FILENO, &testfds)) {
-        if (fgets(buffer, sizeof(buffer), stdin)) {
-          buffer[strcspn(buffer, "\n")] = '\0';
-          process_input_commands(buffer);
-          if (strcmp(buffer, "_STOP_") == 0) {
-            printf("Terminating\n");
-            exit(0);
-          }
-        }
-      }
-      if (FD_ISSET(listener_fd, &testfds)) {
-        struct sockaddr_in udp_useraddr;
-        socklen_t addrlen = sizeof(udp_useraddr);
-        int ret = recvfrom(listener_fd, buffer, sizeof(buffer) - 1, 0,
-                           (struct sockaddr *)&udp_useraddr, &addrlen);
-        if (ret > 0) {
-          buffer[ret] = '\0';
-          printf("UDP Message: %s\n", buffer);
-          if (strcmp(buffer, "_STOP_") == 0) {
-            printf("Terminating\n");
-            exit(0);
-          }
-        }
-      }
-    }
-  }
+
 
   freeaddrinfo(udp);
   close(serverfd);
