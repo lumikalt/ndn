@@ -36,13 +36,13 @@ int main(int argc, char *argv[]) {
   char *regUDP = argc > 5 ? argv[5] : "59000";
 
   struct addrinfo udp_hints, *udp;
-  int serverfd, listener_fd, err;
+  int server_fd, listener_fd, err;
 
   memset(&udp_hints, 0, sizeof(udp_hints));
   udp_hints.ai_family = AF_INET;
   udp_hints.ai_socktype = SOCK_DGRAM;
 
-  if ((serverfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+  if ((server_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
     perror("FATAL: Failed to create UDP socket");
     return 1;
   }
@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 
 
   freeaddrinfo(udp);
-  close(serverfd);
+  close(server_fd);
   close(listener_fd);
 
   return 0;
