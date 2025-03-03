@@ -18,5 +18,5 @@ void list_add(ObjectList *list, Object object, int interested_node);
 void list_remove(ObjectList *list, Object object);
 void list_destroy(ObjectList *list);
 void list_print(ObjectList *list);
-ObjectList* list_find(ObjectList *list, Object object);
+ObjectList *list_find(ObjectList *list, Object object);
 usize list_size(ObjectList *list);

@@ -9,7 +9,7 @@
 
 usize str_char_count(const char *s, char c);
 
-void process_input_commands(Node* node ,char *input);
+void process_input_commands(Node *node, char *input);
 
 int is_valid_net(char *net);
 

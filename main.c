@@ -71,14 +71,14 @@ int main(int argc, char *argv[]) {
   printf("Server is listening on port %s...\n", regUDP);
 
   fd_set read_fds;
-  //struct timeval timeout;
-  //char buffer[128];
+  // struct timeval timeout;
+  // char buffer[128];
 
   FD_ZERO(&read_fds);              // to clear the set of discriptiors
   FD_SET(STDIN_FILENO, &read_fds); // add the keyboard to the set
   FD_SET(listener_fd, &read_fds);  // add a fd to the set
 
-  //Node init
+  // Node init
   Node node;
   node.ip = IP;
   node.tcp = TCP;
@@ -92,9 +92,7 @@ int main(int argc, char *argv[]) {
   node.server->addr = udp;
 
   user_in(&node, &read_fds, listener_fd);
-  //user_in(&read_fds, listener_fd);
-
-
+  // user_in(&read_fds, listener_fd);
 
   freeaddrinfo(udp);
   close(server_fd);

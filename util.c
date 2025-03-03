@@ -67,7 +67,7 @@ int is_valid_name(char *name) {
   return 1;
 }
 
-void process_input_commands(Node* node ,char *input) {
+void process_input_commands(Node *node, char *input) {
   char net[4], ip[16], port[6], name[101];
   int pos;
 
@@ -80,7 +80,7 @@ void process_input_commands(Node* node ,char *input) {
       return;
     }
 
-    ndn_join(node, atoi(net) );
+    ndn_join(node, atoi(net));
     printf("Joining network %s...\n", net);
     return;
   }
@@ -88,9 +88,9 @@ void process_input_commands(Node* node ,char *input) {
 
   //---direct join---
   if ((sscanf(input, "direct join %15s %5s%n", ip, port, &pos) == 2 &&
-    input[pos] == '\0') ||
-    (sscanf(input, "dj %15s %5s%n", ip, port, &pos) == 2 &&
-    input[pos] == '\0')) {
+       input[pos] == '\0') ||
+      (sscanf(input, "dj %15s %5s%n", ip, port, &pos) == 2 &&
+       input[pos] == '\0')) {
 
     if (!is_valid_ip(ip)) {
       printf("Invalid IP address\n");
