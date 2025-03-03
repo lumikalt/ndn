@@ -20,7 +20,8 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0)
-    perror("ERR: Failed to send the NODES request"); // TODO: clean up
+    errored("ERR: Failed to send the NODES request",
+            node); // Changed to errored
   else
     printf("OK: Requested nodes for net %03d\n", net);
 
@@ -32,7 +33,7 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   char response[15];
   if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0)
-    perror("ERR: No response from the server"); // TODO: clean up
+    errored("ERR: No response from the server", node); // Changed to errored
   else if (strncmp(response, ok, 15) != 0)
     printf("ERR: Server response did not match the spec");
   else
@@ -53,7 +54,7 @@ NodeList *ndn_nodes(Node *node, u16 net) {
       if (n == 0)
         printf("OK: Finished reading nodes\n");
       else
-        perror("ERR: No response from the server"); // TODO: clean up
+        errored("ERR: No response from the server", node); // Changed to errored
 
       break;
     }
@@ -96,7 +97,7 @@ void ndn_register(Node *node, u16 net) {
 
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0)
-    perror("ERR: Failed to send the join request"); // TODO: clean up
+    errored("ERR: Failed to send the join request", node); // Changed to errored
   else
     printf("OK: Requested join to net %03d\n", net);
 
@@ -108,7 +109,7 @@ void ndn_register(Node *node, u16 net) {
   if (n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                    &s->addr->ai_addrlen),
       n <= 0)
-    perror("ERR: No response from the server"); // TODO: clean up
+    errored("ERR: No response from the server", node); // Changed to errored
   else if (strncmp(response, ok, 6) != 0)
     printf("ERR: Server refused the connection to net %03d\n", net);
   else
@@ -126,7 +127,8 @@ void ndn_unregister(Node *node, u16 net) {
 
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0)
-    perror("ERR: Failed to send the leave request"); // TODO: clean up
+    errored("ERR: Failed to send the leave request",
+            node); // Changed to errored
   else
     printf("OK: Requested leave from net %03d\n", net);
 
@@ -137,7 +139,7 @@ void ndn_unregister(Node *node, u16 net) {
 
   if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0)
-    perror("ERR: No response from the server"); // TODO: clean up
+    errored("ERR: No response from the server", node); // Changed to errored
   else if (strncmp(response, ok, 8) != 0)
     printf("ERR: Server refused the connection to net %03d\n", net);
   else
