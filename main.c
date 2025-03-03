@@ -34,30 +34,50 @@ int main(int argc, char *argv[]) {
   // debug, depois tiro
   char *regUDP = argc > 5 ? argv[5] : "59000";
 
-  struct addrinfo udp_hints, *udp;
-  int server_fd, listener_fd, err;
 
-  memset(&udp_hints, 0, sizeof(udp_hints));
-  udp_hints.ai_family = AF_INET;
-  udp_hints.ai_socktype = SOCK_DGRAM;
 
-  if ((server_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-    perror("FATAL: Failed to create UDP socket");
-    return 1;
+  int listener_fd, new_fd, max_fd, counter;
+  struct addrinfo hints, *res;
+  struct sockaddr addr;
+  socklen_t addrlen;
+  char buffer[128];
+  fd_set master_fds, read_fds;
+
+  memset(&hints, 0, sizeof hints);
+
+  hints.ai_socktype = SOCK_STREAM;  // TCP socket
+  hints.ai_flags = AI_PASSIVE;
+
+  // Get address info for binding the socket
+  if (getaddrinfo(NULL, TCP, &hints, &res) != 0) {
+    perror("getaddrinfo");
+    exit(1);
   }
 
-  if ((err = getaddrinfo(regIP, regUDP, &udp_hints, &udp)) != 0) {
-    fprintf(stderr, "FATAL: getaddrinfo: %s\n", gai_strerror(err));
-    return 1;
+  // Create a socket
+  if ((listener_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
+    perror("socket");
+    exit(1);
   }
 
-  if ((listener_fd =
-           socket(udp->ai_family, udp->ai_socktype, udp->ai_protocol)) == -1)
-    return perror("socket"), 1;
+  // Bind socket to the specified port
+  if (bind(listener_fd, res->ai_addr, res->ai_addrlen) == -1) {
+    perror("bind");
+    exit(1);
+  }
 
-  if (bind(listener_fd, udp->ai_addr, udp->ai_addrlen) == -1)
-    return perror("bind"), 1;
+  // No longer needed, so we free the structure
+  freeaddrinfo(res);
 
+  // Start listening for incoming connections
+  if (listen(listener_fd, 5) == -1) {
+    perror("listen");
+    exit(1);
+  }
+
+  printf("Server is listening on port %s...\n", TCP);
+
+  user_in(listener_fd);
   /* wooooo
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
@@ -68,18 +88,10 @@ int main(int argc, char *argv[]) {
       return perror("FATAL: Failed to ignore SIGPIPE"), 1;
   */
 
-  printf("Server is listening on port %s...\n", regUDP);
 
-  fd_set read_fds;
-  // struct timeval timeout;
-  // char buffer[128];
-
-  FD_ZERO(&read_fds);              // to clear the set of discriptiors
-  FD_SET(STDIN_FILENO, &read_fds); // add the keyboard to the set
-  FD_SET(listener_fd, &read_fds);  // add a fd to the set
 
   // Node init
-  Node node;
+ /* Node node;
   node.ip = IP;
   node.tcp = TCP;
   node.cache_size = cache;
@@ -90,13 +102,7 @@ int main(int argc, char *argv[]) {
   }
   node.server->fd = listener_fd;
   node.server->addr = udp;
+  */
 
-  user_in(&node, &read_fds, listener_fd);
-  // user_in(&read_fds, listener_fd);
-
-  freeaddrinfo(udp);
-  close(server_fd);
-  close(listener_fd);
-
-  return 0;
+ return 0;
 }
