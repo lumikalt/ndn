@@ -1,7 +1,9 @@
 #include "util.h"
 #include "commands.h"
+#include "types.h"
 
 #include <netdb.h>
+#include <stdio.h>
 #include <unistd.h>
 
 void clean_node(Node *node) {
@@ -141,4 +143,11 @@ void process_input_commands(Node *node, char *input) {
   // if the command does not exist
   printf("That command does not exist. Please type 'help' for the list of "
          "commands\n");
+}
+
+void errored(const char *msg, Node *node) {
+  clean_node(node);
+
+  printf("%s", msg);
+  exit(1);
 }
