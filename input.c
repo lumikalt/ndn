@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 
-void user_in(int listener_fd) {
+void user_in(int listener_fd, Node *node) {
   int new_fd, max_fd, counter;
   struct sockaddr addr;
   socklen_t addrlen;
@@ -64,6 +64,7 @@ void user_in(int listener_fd) {
             if (write(i, buffer, n) == -1) {
               perror("write");
             }
+            process_input_commands(node, buffer);
           }
         }
       }

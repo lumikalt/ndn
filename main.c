@@ -77,7 +77,23 @@ int main(int argc, char *argv[]) {
 
   printf("Server is listening on port %s...\n", TCP);
 
-  user_in(listener_fd);
+
+  // Node init
+   Node node;
+   node.ip = IP;
+   node.tcp = TCP;
+   node.cache_size = cache;
+   node.server = malloc(sizeof(Server));
+   if (node.server == NULL) {
+     perror("Memory allocation fail");
+     return 1;
+  }
+  node.server->fd = listener_fd;
+  //node.server->addr = TCP;
+
+
+
+  user_in(listener_fd, &node);
   /* wooooo
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
@@ -86,22 +102,6 @@ int main(int argc, char *argv[]) {
 
     if (sigaction(SIGPIPE, &sa, NULL) == -1)
       return perror("FATAL: Failed to ignore SIGPIPE"), 1;
-  */
-
-
-
-  // Node init
- /* Node node;
-  node.ip = IP;
-  node.tcp = TCP;
-  node.cache_size = cache;
-  node.server = malloc(sizeof(Server));
-  if (node.server == NULL) {
-    perror("Memory allocation fail");
-    return 1;
-  }
-  node.server->fd = listener_fd;
-  node.server->addr = udp;
   */
 
  return 0;

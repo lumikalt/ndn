@@ -72,6 +72,7 @@ int is_valid_name(char *name) {
 void process_input_commands(Node *node, char *input) {
   char net[4], ip[16], port[6], name[101];
   int pos;
+  input[strcspn(input, "\n")] = '\0';
 
   //---join---
   if ((sscanf(input, "join %3s%n", net, &pos) == 1 && input[pos] == '\0') ||
@@ -82,7 +83,7 @@ void process_input_commands(Node *node, char *input) {
       return;
     }
 
-    ndn_join(node, atoi(net));
+    //ndn_join(node, atoi(net));
     printf("Joining network %s...\n", net);
     return;
   }
