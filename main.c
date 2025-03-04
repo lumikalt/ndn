@@ -1,6 +1,7 @@
 // #include "./input.h"
 
 #include "input.h"
+#include "util.h"
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pthread.h>
@@ -30,8 +31,7 @@ int main(int argc, char *argv[]) {
   char *IP = argv[2];
   char *TCP = argv[3];
   char *regIP =
-      argc > 4 ? argv[4] : INADDR_ANY; //"193.136.138.142"; //NOTE: foi so para
-  // debug, depois tiro
+      argc > 4 ? argv[4] : "193.136.138.142"; //"193.136.138.142";
   char *regUDP = argc > 5 ? argv[5] : "59000";
 
 
@@ -78,22 +78,11 @@ int main(int argc, char *argv[]) {
   printf("Server is listening on port %s...\n", TCP);
 
 
-  // Node init
-   Node node;
-   node.ip = IP;
-   node.tcp = TCP;
-   node.cache_size = cache;
-   node.server = malloc(sizeof(Server));
-   if (node.server == NULL) {
-     perror("Memory allocation fail");
-     return 1;
-  }
-  node.server->fd = listener_fd;
-  //node.server->addr = TCP;
+  Node *node = init_node(cache, regIP, TCP);
 
 
 
-  user_in(listener_fd, &node);
+  user_in(listener_fd, node);
   /* wooooo
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
