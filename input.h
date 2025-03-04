@@ -4,4 +4,4 @@
 
 #include <sys/select.h>
 
-void user_in(int listener_fd);
+void user_in(int listener_fd, Node *node);

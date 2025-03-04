@@ -6,6 +6,55 @@
 #include <stdio.h>
 #include <unistd.h>
 
+
+Node* init_node(usize cache_size, char *node_IP, char *node_TCP) {
+  Node *node = malloc(sizeof(Node));
+  if (!node) {
+    perror("malloc fail");
+    exit(EXIT_FAILURE);
+  }
+
+  node->cache_size = cache_size;
+  node->cache = calloc(cache_size, sizeof(Object));
+  if (!node->cache) {
+    perror("calloc fail");
+    exit(EXIT_FAILURE);
+  }
+
+
+  node->objects = NULL;
+  node->interests = NULL;
+
+
+  node->network = malloc(sizeof(NodeList));
+  if (!node->network) {
+    perror("malloc");
+    exit(EXIT_FAILURE);
+  }
+  node->network->ip = NULL;
+  node->network->tcp = NULL;
+  node->network->size = 0;
+  node->network->capacity = 0;
+
+
+  node->ip = strdup(node_IP);
+  node->tcp = strdup(node_TCP);
+  if (!node->ip || !node->tcp) {
+    perror("strdup");
+    exit(EXIT_FAILURE);
+  }
+
+
+  node->safeguard = NULL;
+  node->external = NULL;
+  node->internal = NULL;
+  node->server = NULL;
+
+  return node;
+}
+
+
+
 void clean_node(Node *node) {
   list_destroy(node->objects);
   list_destroy(node->interests);
