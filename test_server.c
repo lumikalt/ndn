@@ -47,10 +47,10 @@ int main() {
          inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
   // Send response to the client
-  char response[] = "NOTELIST 123"
-                    "123.456.789 321431"
-                    "879.423.789 214354"
-                    "432.456.890 408321";
+  char response[] = "NOTELIST 123\n"
+                    "123.456.789 321431\n"
+                    "879.423.789 214354\n"
+                    "432.456.890 408321\n";
 
   int bytes_sent = sendto(server_fd, response, sizeof(response), 0,
                           (struct sockaddr *)&client_addr, client_addr_len);
