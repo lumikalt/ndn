@@ -30,11 +30,8 @@ int main(int argc, char *argv[]) {
   usize cache = atoi(argv[1]);
   char *IP = argv[2];
   char *TCP = argv[3];
-  char *regIP =
-      argc > 4 ? argv[4] : "193.136.138.142"; //"193.136.138.142";
+  char *regIP = argc > 4 ? argv[4] : "193.136.138.142";
   char *regUDP = argc > 5 ? argv[5] : "59000";
-
-
 
   int listener_fd, new_fd, max_fd, counter;
   struct addrinfo hints, *res;
@@ -45,7 +42,7 @@ int main(int argc, char *argv[]) {
 
   memset(&hints, 0, sizeof hints);
 
-  hints.ai_socktype = SOCK_STREAM;  // TCP socket
+  hints.ai_socktype = SOCK_STREAM; // TCP socket
   hints.ai_flags = AI_PASSIVE;
 
   // Get address info for binding the socket
@@ -55,7 +52,8 @@ int main(int argc, char *argv[]) {
   }
 
   // Create a socket
-  if ((listener_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
+  if ((listener_fd =
+           socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
     perror("socket");
     exit(1);
   }
@@ -75,12 +73,9 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  printf("Server is listening on port %s...\n", TCP);
-
+  printf("OK: TCP server listening on port %s\n", TCP);
 
   Node *node = init_node(cache, regIP, TCP);
-
-
 
   user_in(listener_fd, node);
   /* wooooo
@@ -93,5 +88,5 @@ int main(int argc, char *argv[]) {
       return perror("FATAL: Failed to ignore SIGPIPE"), 1;
   */
 
- return 0;
+  return 0;
 }
