@@ -42,8 +42,8 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   /* Get the nodes */
 
   // char buffer[256];
-  char line[512];      // Buffer to store incomplete lines
-  size_t line_len = 0; // Length of the incomplete line
+  char *line = malloc(521); // Buffer to store incomplete lines
+  size_t line_len = 0;      // Length of the incomplete line
   char *ptr;
   usize i = 0;
   while (true) {
@@ -82,6 +82,8 @@ NodeList *ndn_nodes(Node *node, u16 net) {
       i++;
     }
   }
+
+  free(line);
 
   return nodes;
 }
