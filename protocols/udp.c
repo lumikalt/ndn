@@ -27,7 +27,7 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   /* Wait for the OK */
 
-  char ok[15];
+  char ok[17];
   sprintf(ok, "NODESLIST %03d\n", net);
 
   char response[15];
@@ -45,7 +45,6 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   char *line = malloc(521); // Buffer to store incomplete lines
   size_t line_len = 0;      // Length of the incomplete line
   char *ptr;
-  usize i = 0;
   while (true) {
     // Check if there are no more bytes to read
     n = recvfrom(s->fd, buffer, sizeof(buffer) - 1, 0, s->addr->ai_addr,
@@ -64,22 +63,59 @@ NodeList *ndn_nodes(Node *node, u16 net) {
     // Handle all but the last line, which may be incomplete
     usize line_num = str_char_count(buffer, '\n');
 
-    for (usize j = 0; j < line_num; j++) {
+    for (usize j = 0; j < line_num - 1; j++) {
       ptr = strchr(buffer, '\n');
       *ptr = '\0';
 
-      if (i > nodes->capacity) {
+      nodes->size++;
+
+      if (nodes->size > nodes->capacity) {
         nodes->capacity *= 2;
         nodes->ip = realloc(nodes->ip, nodes->capacity * sizeof(char *));
         nodes->tcp = realloc(nodes->tcp, nodes->capacity * sizeof(char *));
       }
 
-      nodes->ip[i] = malloc(256);
-      nodes->tcp[i] = malloc(10);
+      nodes->ip[nodes->size - 1] = malloc(256);
+      nodes->tcp[nodes->size - 1] = malloc(10);
 
-      sscanf(buffer, "%s %s", nodes->ip[i], nodes->tcp[i]);
+      sscanf(buffer, "%s %s", nodes->ip[nodes->size - 1],
+             nodes->tcp[nodes->size - 1]);
+    }
 
-      i++;
+    // Handle the last line, which may be incomplete
+    ptr = strchr(buffer, '\n');
+    if (ptr == NULL) {
+      // If the buffer does not contain a newline character, it is an incomplete
+      // line
+      usize buffer_len = strlen(buffer);
+      if (line_len + buffer_len > 520) {
+        errored("ERR: Incomplete line is too long", node); // Changed to errored
+        break;
+      }
+
+      memcpy(line + line_len, buffer, buffer_len);
+      line_len += buffer_len;
+    } else {
+      // If the buffer contains a newline character, it is a complete line
+      *ptr = '\0';
+
+      nodes->size++;
+
+      if (nodes->size > nodes->capacity) {
+        nodes->capacity *= 2;
+        nodes->ip = realloc(nodes->ip, nodes->capacity * sizeof(char *));
+        nodes->tcp = realloc(nodes->tcp, nodes->capacity * sizeof(char *));
+      }
+
+      nodes->ip[nodes->size - 1] = malloc(256);
+      nodes->tcp[nodes->size - 1] = malloc(10);
+
+      sscanf(buffer, "%s %s", nodes->ip[nodes->size - 1],
+             nodes->tcp[nodes->size - 1]);
+
+      // Copy the incomplete line to the beginning of the buffer
+      memcpy(buffer, ptr + 1, strlen(ptr + 1));
+      line_len = 0;
     }
   }
 
