@@ -106,7 +106,7 @@ void ndn_retrieve(Node *node, const char *name) {
 }
 
 void ndn_show_topology(Node *node) {
-  printf("OK: Network topology:\n");
+  printf("Network topology:\n");
   printf("\tSafeguard: %s:%s\n", node->safeguard->ip, node->safeguard->tcp);
   printf("\tExternal: %s:%s\n", node->external->ip, node->external->tcp);
   printf("\tInternal:\n");

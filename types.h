@@ -56,6 +56,7 @@ typedef struct {
   AdjacentNode *safeguard;
   AdjacentNode *external;
   AdjacentNode **internal;
+  usize internal_size;
 
   Server *server;
 
@@ -65,6 +66,6 @@ typedef struct {
 
   // TCP listener
   int listener_fd;
-  fd_set master_fds, read_fds;
   int max_fd;
+  fd_set master_fds, read_fds;
 } Node;
