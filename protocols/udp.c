@@ -26,17 +26,26 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   /* Wait for the OK */
 
-  char ok[17];
-  sprintf(ok, "NODESLIST %03d\n", net);
+  char ok[15];
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wformat-overflow"
+    sprintf(ok, "NODESLIST %03d\n", net);
+  #pragma GCC diagnostic pop
+
+  printf("Expecting: `%s`\n", ok);
 
   char response[15];
   if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0)
     errored("ERR: No response from the server", node);
-  else if (strncmp(response, ok, 15) != 0)
-    printf("ERR: Server response did not match the spec");
-  else
-    printf("OK: Receiving nodes in net %d\n", net);
+  else {
+    response[n] = '\0'; // Null-terminate the received data
+    printf("Received response: `%s`\n", response);
+    if (strncmp(response, ok, 14) != 0)
+      errored("ERR: Server response did not match the spec", node);
+    else
+      printf("OK: Receiving nodes in net %d\n", net);
+  }
 
   /* Get the nodes */
 
