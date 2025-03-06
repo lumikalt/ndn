@@ -9,19 +9,21 @@
 ObjectList *list_create() {
   ObjectList *list = malloc(sizeof(ObjectList));
   list->self = NULL;
-  list->interested_node = -1;
+  list->ip = NULL;
+  list->tcp = NULL;
   list->next = NULL;
   return list;
 }
 
-void list_add(ObjectList *list, Object object, int interested_node) {
+void list_add(ObjectList *list, Object object, char *ip, char *tcp) {
   ObjectList *current = list;
   while (current->next != NULL) {
     current = current->next;
   }
   current->next = malloc(sizeof(ObjectList));
   current->next->self = object;
-  current->next->interested_node = interested_node; // Set the new member
+  current->next->ip = ip;
+  current->next->tcp = tcp;
   current->next->next = NULL;
 }
 
@@ -50,17 +52,17 @@ void list_destroy(ObjectList *list) {
 void list_print(ObjectList *list) {
   ObjectList *current = list;
   while (current->next != NULL) {
-    printf("\t%s (Network Index: %zu)\n", current->next->self,
-           current->next->interested_node);
+    printf("\t%s\n", current->next->self);
     current = current->next;
   }
 }
 
-void list_print_interests(NodeList *nodes, ObjectList *list) {
+void list_print_interests(ObjectList *list) {
   ObjectList *current = list;
   while (current->next != NULL) {
-    printf("\t%s:%s\t%s\n", nodes->ip[current->next->interested_node],
-           nodes->tcp[current->next->interested_node], current->next->self);
+    printf("\t%s %s:%s\n", current->next->self,
+           current->next->ip,
+           current->next->tcp);
     current = current->next;
   }
 }

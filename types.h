@@ -46,7 +46,7 @@ typedef struct {
 typedef char *Object;
 
 // The Node type (everything is here)
-typedef struct {
+typedef struct Node {
   ObjectList *objects;
   ObjectList *interests;
   Object *cache;

@@ -82,7 +82,7 @@ void ndn_create(Node *node, const char *name) {
   Object object = malloc(strlen(name) + 1);
   strcpy(object, name);
 
-  list_add(node->objects, object, -1);
+  list_add(node->objects, object, NULL, NULL);
 }
 
 void ndn_delete(Node *node, const char *name) {
@@ -128,8 +128,13 @@ void ndn_show_names(Node *node) {
   }
 }
 
-void ndn_show_interest_table(Node *node) { printf("Showing interest table\n"); }
+void ndn_show_interest_table(Node *node) {
+  printf("Interest:\n");
+  for (usize i = 0; i < list_size(node->interests); i++) {
+  }
+}
 
 void ndn_leave(Node *node) { printf("Leaving network\n"); }
 
-void ndn_exit(Node *node) { printf("Exiting program\n"); }
+// void ndn_exit(Node *node) { printf("Exiting program\n"); } // Select handles
+// this

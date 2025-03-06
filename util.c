@@ -90,32 +90,32 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   node->server->fd = fd;
 
   // create TCP listener
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE;
+  // memset(&hints, 0, sizeof hints);
+  // hints.ai_family = AF_INET;
+  // hints.ai_socktype = SOCK_STREAM;
+  // hints.ai_flags = AI_PASSIVE;
 
-  if (getaddrinfo(NULL, tcp, &hints, &res) != 0) {
-    perror("getaddrinfo");
-    exit(1);
-  }
+  // if (getaddrinfo(NULL, tcp, &hints, &res) != 0) {
+  //   perror("getaddrinfo");
+  //   exit(1);
+  // }
 
-  int listener_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-  if (listener_fd == -1) {
-    perror("socket");
-    exit(1);
-  }
+  // int listener_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+  // if (listener_fd == -1) {
+  //   perror("socket");
+  //   exit(1);
+  // }
 
-  if (bind(listener_fd, res->ai_addr, res->ai_addrlen) == -1) {
-    perror("bind");
-    exit(1);
-  }
+  // if (bind(listener_fd, res->ai_addr, res->ai_addrlen) == -1) {
+  //   perror("bind");
+  //   exit(1);
+  // }
 
-  node->listener_fd = listener_fd;
-  FD_ZERO(&node->master_fds);
-  FD_ZERO(&node->read_fds);
-  FD_SET(listener_fd, &node->master_fds);
-  node->max_fd = listener_fd;
+  // node->listener_fd = listener_fd;
+  // FD_ZERO(&node->master_fds);
+  // FD_ZERO(&node->read_fds);
+  // FD_SET(listener_fd, &node->master_fds);
+  // node->max_fd = listener_fd;
 
   return node;
 }
@@ -145,6 +145,7 @@ void clean_node(Node *node) {
   free(node->server);
   free(node->ip);
   free(node->tcp);
+  
   free(node);
 }
 
