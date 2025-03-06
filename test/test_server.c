@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-int main() {
+int main(int argc, char** argv) {
   // Create a UDP server
   int server_fd = socket(AF_INET, SOCK_DGRAM, 0);
   if (server_fd == -1) {
@@ -19,7 +19,7 @@ int main() {
   // use getaddrinfo to get the address info
 
   server_addr.sin_family = AF_INET;
-  server_addr.sin_port = htons(59000);
+  server_addr.sin_port = htons(atoi(argv[1]));
   server_addr.sin_addr.s_addr = INADDR_ANY;
 
   // Bind the socket to the address
