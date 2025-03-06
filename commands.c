@@ -2,6 +2,7 @@
 #include "list.h"
 #include "protocols/udp.h"
 #include "types.h"
+#include "util.h"
 
 #include <arpa/inet.h>
 #include <stdio.h>
@@ -44,7 +45,7 @@ void ndn_join(Node *node, u16 net) {
   // Create TCP socket
   int node_port = socket(AF_INET, SOCK_STREAM, 0);
   if (node_port < 0) {
-    perror("Failed to create socket");
+    errored("Failed to create socket", node);
     return;
   }
 
@@ -62,7 +63,6 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
 
-
   if (connect(node_port, res->ai_addr, res->ai_addrlen) < 0) {
     perror("Connection to nearby node failed");
     close(node_port);
@@ -71,10 +71,12 @@ void ndn_join(Node *node, u16 net) {
   }
 
   printf("Connected to %s:%s\n", node_ip, node_tcp);
-  freeaddrinfo(res);
+
+  node->external->ip = node_ip;
+  node->external->tcp = node_tcp;
+  node->external->addr = res;
+  node->external->fd = node_port;
 }
-
-
 
 void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
   printf("Directly joining network %d, linking to %s:%s\n", net, connectIP,
