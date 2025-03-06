@@ -11,7 +11,8 @@ usize str_char_count(const char *s, char c);
 
 void process_input_commands(Node *node, char *input);
 
-Node* init_node(usize cache_size, char *node_IP, char *node_TCP);
+Node *init_node(usize cache_size, char *node_IP, char *node_TCP, char *regIP,
+                char *regUDP);
 
 int is_valid_net(char *net);
 

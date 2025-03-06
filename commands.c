@@ -105,7 +105,15 @@ void ndn_retrieve(Node *node, const char *name) {
   // TODO: Send interest to adjacent nodes
 }
 
-void ndn_show_topology(Node *node) { printf("Showing network topology\n"); }
+void ndn_show_topology(Node *node) {
+  printf("OK: Network topology:\n");
+  printf("\tSafeguard: %s:%s\n", node->safeguard->ip, node->safeguard->tcp);
+  printf("\tExternal: %s:%s\n", node->external->ip, node->external->tcp);
+  printf("\tInternal:\n");
+  for (usize i = 0; i < node->network->size; i++) {
+    printf("\t\t%s:%s\n", node->network->ip[i], node->network->tcp[i]);
+  }
+}
 
 void ndn_show_names(Node *node) {
   printf("Owned:\n");

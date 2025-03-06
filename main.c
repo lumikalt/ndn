@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
 
   printf("OK: TCP server listening on port %s\n", TCP);
 
-  Node *node = init_node(cache, regIP, TCP);
+  Node *node = init_node(cache, IP, TCP, regIP, regUDP);
 
   user_in(listener_fd, node);
   /* wooooo

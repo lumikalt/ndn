@@ -26,7 +26,8 @@ typedef struct {
   struct addrinfo *addr;
   int fd;
 
-  usize node_index;
+  char *ip;
+  char *tcp;
 } AdjacentNode;
 
 typedef struct {

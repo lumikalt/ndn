@@ -1,59 +1,96 @@
 #include "util.h"
 #include "commands.h"
+#include "protocols/udp.h"
 #include "types.h"
 
 #include <netdb.h>
 #include <stdio.h>
 #include <unistd.h>
 
-
-Node* init_node(usize cache_size, char *node_IP, char *node_TCP) {
+Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
+                char *regUDP) {
   Node *node = malloc(sizeof(Node));
   if (!node) {
     perror("malloc fail");
-    exit(EXIT_FAILURE);
+    exit(1);
   }
 
   node->cache_size = cache_size;
   node->cache = calloc(cache_size, sizeof(Object));
   if (!node->cache) {
     perror("calloc fail");
-    exit(EXIT_FAILURE);
+    exit(1);
   }
-
 
   node->objects = NULL;
   node->interests = NULL;
 
-
   node->network = malloc(sizeof(NodeList));
   if (!node->network) {
     perror("malloc");
-    exit(EXIT_FAILURE);
+    exit(1);
   }
   node->network->ip = NULL;
   node->network->tcp = NULL;
   node->network->size = 0;
   node->network->capacity = 0;
 
-
-  node->ip = strdup(node_IP);
-  node->tcp = strdup(node_TCP);
+  node->ip = ip;
+  node->tcp = tcp;
   if (!node->ip || !node->tcp) {
     perror("strdup");
-    exit(EXIT_FAILURE);
+    exit(1);
   }
 
+  node->safeguard = malloc(sizeof(AdjacentNode));
+  if (!node->safeguard) {
+    perror("malloc");
+    exit(1);
+  }
+  node->safeguard->ip = NULL;
+  node->safeguard->tcp = NULL;
+  node->safeguard->addr = NULL;
+  node->safeguard->fd = -1;
 
-  node->safeguard = NULL;
-  node->external = NULL;
+  node->external = malloc(sizeof(AdjacentNode));
+  if (!node->external) {
+    perror("malloc");
+    exit(1);
+  }
+  node->external->ip = NULL;
+  node->external->tcp = NULL;
+  node->external->addr = NULL;
+  node->external->fd = -1;
+
   node->internal = NULL;
-  node->server = NULL;
+
+  // create UDP client connection to the server
+  struct addrinfo hints, *res;
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_DGRAM;
+
+  if (getaddrinfo(regIP, regUDP, &hints, &res) != 0) {
+    perror("getaddrinfo");
+    exit(1);
+  }
+
+  int fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+  if (fd == -1) {
+    perror("socket");
+    exit(1);
+  }
+
+  node->server = malloc(sizeof(Server));
+  if (!node->server) {
+    perror("malloc");
+    exit(1);
+  }
+  node->server->addr = res;
+  node->server->fd = fd;
 
   return node;
 }
-
-
 
 void clean_node(Node *node) {
   list_destroy(node->objects);
@@ -132,7 +169,7 @@ void process_input_commands(Node *node, char *input) {
       return;
     }
 
-    //ndn_join(node, atoi(net));
+    // ndn_join(node, atoi(net));
     printf("Joining network %s...\n", net);
     return;
   }
@@ -156,6 +193,8 @@ void process_input_commands(Node *node, char *input) {
       }
     }
 
+    // ndn_register(node, 0);
+
     return;
   }
 
@@ -171,6 +210,8 @@ void process_input_commands(Node *node, char *input) {
       return;
     }
 
+    ndn_create(node, name);
+
     printf("Created object '%s'\n", name);
     return;
   }
@@ -185,13 +226,23 @@ void process_input_commands(Node *node, char *input) {
       printf("Invalid name\n");
       return;
     }
+
+    ndn_delete(node, name);
+
     printf("Deleted object '%s'\n", name);
     return;
   }
   //----------
 
+  //---help---
+  if ((strcmp(input, "help") == 0) || (strcmp(input, "h") == 0)) {
+    ndn_help();
+    return;
+  }
+  //----------
+
   // if the command does not exist
-  printf("That command does not exist. Please type 'help' for the list of "
+  printf("That command does not exist. Please type '(h)elp' for the list of "
          "commands\n");
 }
 
