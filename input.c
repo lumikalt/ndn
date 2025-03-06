@@ -64,6 +64,12 @@ void user_in(int listener_fd, Node *node) {
             if (write(i, buffer, n) == -1) {
               perror("write");
             }
+
+            if(!memcmp(buffer,"_STOP",5)){
+              write(1,"Terminating\n",12);
+              exit(0);
+            }
+
             process_input_commands(node, buffer);
           }
         }
