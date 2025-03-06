@@ -130,8 +130,7 @@ void ndn_show_names(Node *node) {
 
 void ndn_show_interest_table(Node *node) {
   printf("Interest:\n");
-  for (usize i = 0; i < list_size(node->interests); i++) {
-  }
+  list_print_interests(node->interests);
 }
 
 void ndn_leave(Node *node) { printf("Leaving network\n"); }

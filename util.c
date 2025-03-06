@@ -1,5 +1,6 @@
 #include "util.h"
 #include "commands.h"
+#include "list.h"
 #include "protocols/udp.h"
 #include "types.h"
 
@@ -145,7 +146,7 @@ void clean_node(Node *node) {
   free(node->server);
   free(node->ip);
   free(node->tcp);
-  
+
   free(node);
 }
 
@@ -188,6 +189,18 @@ void process_input_commands(Node *node, char *input) {
   char net[4], ip[16], port[6], name[101];
   int pos;
   input[strcspn(input, "\n")] = '\0';
+
+  //---nodes---
+  if ((strcmp(input, "nodes") == 0) || (strcmp(input, "n") == 0)) {
+    NodeList *nodes = ndn_nodes(node, 123);
+
+    for (usize i = 0; i < nodes->size; i++) {
+      printf("%s:%s\n", nodes->ip[i], nodes->tcp[i]);
+    }
+
+    return;
+  }
+  //----------
 
   //---join---
   if ((sscanf(input, "join %3s%n", net, &pos) == 1 && input[pos] == '\0') ||

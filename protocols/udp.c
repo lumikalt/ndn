@@ -43,7 +43,7 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   // char buffer[256];
   char *line = malloc(521); // Buffer to store incomplete lines
-  size_t line_len = 0;      // Length of the incomplete line
+  usize line_len = 0;
   char *ptr;
   while (true) {
     // Check if there are no more bytes to read
