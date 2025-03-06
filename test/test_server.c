@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
          inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), buffer);
 
   // Send response to the client
-  char response[] = "NOTELIST 123\n"
+  char response[] = "NODESLIST 123\n"
                     "123.456.789 321431\n"
                     "879.423.789 214354\n"
                     "432.456.890 408321\n";

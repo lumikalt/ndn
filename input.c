@@ -7,7 +7,6 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-
 void user_in(int listener_fd, Node *node) {
   int new_fd, max_fd, counter;
   struct sockaddr addr;
@@ -45,7 +44,6 @@ void user_in(int listener_fd, Node *node) {
             printf("New connection established: FD %d\n", new_fd);
           }
 
-
         } else {
           int n = read(i, buffer, 128);
 
@@ -65,8 +63,8 @@ void user_in(int listener_fd, Node *node) {
               perror("write");
             }
 
-            if(!memcmp(buffer,"_STOP",5)){
-              write(1,"Terminating\n",12);
+            if (!memcmp(buffer, "_STOP", 5)) {
+              write(1, "Terminating\n", 12);
               exit(0);
             }
 

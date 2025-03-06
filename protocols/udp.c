@@ -27,20 +27,19 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   /* Wait for the OK */
 
   char ok[15];
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wformat-overflow"
-    sprintf(ok, "NODESLIST %03d\n", net);
-  #pragma GCC diagnostic pop
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-overflow"
+  sprintf(ok, "NODESLIST %03d\n", net);
+#pragma GCC diagnostic pop
 
   printf("Expecting: `%s`\n", ok);
 
-  char response[15];
+  char response[14]; // NODESLIST 000n
   if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0)
     errored("ERR: No response from the server", node);
   else {
-    response[n] = '\0'; // Null-terminate the received data
-    printf("Received response: `%s`\n", response);
+    printf("Received: `%s`\n", response);
     if (strncmp(response, ok, 14) != 0)
       errored("ERR: Server response did not match the spec", node);
     else
@@ -48,7 +47,6 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   }
 
   /* Get the nodes */
-
   // char buffer[256];
   char *line = malloc(521); // Buffer to store incomplete lines
   usize line_len = 0;
