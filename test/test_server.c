@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   // Create a UDP server
   int server_fd = socket(AF_INET, SOCK_DGRAM, 0);
   if (server_fd == -1) {
@@ -43,14 +43,16 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  printf("Received %d bytes from %s:%d\n", bytes_received,
-         inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+  printf("Received %d bytes from %s:%d\n~>\t`%s`\n", bytes_received,
+         inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), buffer);
 
   // Send response to the client
   char response[] = "NOTELIST 123\n"
                     "123.456.789 321431\n"
                     "879.423.789 214354\n"
                     "432.456.890 408321\n";
+
+  printf("Sending:\n---\n%s\n---\n", response);
 
   int bytes_sent = sendto(server_fd, response, sizeof(response), 0,
                           (struct sockaddr *)&client_addr, client_addr_len);
