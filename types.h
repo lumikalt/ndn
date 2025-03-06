@@ -17,11 +17,13 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 
+// UDP server connection
 typedef struct {
   struct addrinfo *addr;
   int fd;
 } Server;
 
+// Adjacent node TCP connection
 typedef struct {
   struct addrinfo *addr;
   int fd;
@@ -30,6 +32,7 @@ typedef struct {
   char *tcp;
 } AdjacentNode;
 
+// List of nodes in the current network
 typedef struct {
   char **ip;
   char **tcp;
@@ -39,8 +42,10 @@ typedef struct {
   usize capacity;
 } NodeList;
 
+// Object type
 typedef char *Object;
 
+// The Node type (everything is here)
 typedef struct {
   ObjectList *objects;
   ObjectList *interests;
@@ -57,4 +62,9 @@ typedef struct {
   // self address
   char *ip;
   char *tcp;
+
+  // TCP listener
+  int listener_fd;
+  fd_set master_fds, read_fds;
+  int max_fd;
 } Node;
