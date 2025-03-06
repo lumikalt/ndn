@@ -101,8 +101,8 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   //   exit(1);
   // }
 
-  // int listener_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-  // if (listener_fd == -1) {
+  // int listener_fd = socket(res->ai_family, res->ai_socktype,
+  // res->ai_protocol); if (listener_fd == -1) {
   //   perror("socket");
   //   exit(1);
   // }
@@ -124,28 +124,65 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
 void clean_node(Node *node) {
   list_destroy(node->objects);
   list_destroy(node->interests);
-  free(node->cache);
-  free(node->network->ip);
-  free(node->network->tcp);
-  free(node->network);
-  free(node->safeguard->addr);
-  close(node->safeguard->fd);
-  freeaddrinfo(node->safeguard->addr);
-  free(node->safeguard);
-  freeaddrinfo(node->external->addr);
-  close(node->external->fd);
-  free(node->external);
-  for (usize i = 0; i < node->network->size; i++) {
-    freeaddrinfo(node->internal[i]->addr);
-    // clean the file descriptors
-    close(node->internal[i]->fd);
-    free(node->internal[i]);
+
+  for (usize i = 0; i < node->cache_size; i++) {
+    free(node->cache[i]);
   }
-  free(node->internal);
-  freeaddrinfo(node->server->addr);
-  free(node->server);
-  free(node->ip);
-  free(node->tcp);
+  free(node->cache);
+
+  if (node->network) {
+    if (node->network->ip) {
+      free(node->network->ip);
+    }
+    if (node->network->tcp) {
+      free(node->network->tcp);
+    }
+    free(node->network);
+  }
+  if (node->safeguard) {
+    if (node->safeguard->addr) {
+      freeaddrinfo(node->safeguard->addr);
+    }
+    if (node->safeguard->fd != -1) {
+      close(node->safeguard->fd);
+    }
+    free(node->safeguard);
+  }
+  if (node->external) {
+    if (node->external->addr) {
+      freeaddrinfo(node->external->addr);
+    }
+    if (node->external->fd != -1) {
+      close(node->external->fd);
+    }
+    free(node->external);
+  }
+  if (node->internal) {
+    for (usize i = 0; i < node->network->size; i++) {
+      if (node->internal[i]) {
+        if (node->internal[i]->addr) {
+          freeaddrinfo(node->internal[i]->addr);
+        }
+        if (node->internal[i]->fd != -1) {
+          close(node->internal[i]->fd);
+        }
+        free(node->internal[i]);
+      }
+    }
+    free(node->internal);
+  }
+  if (node->server) {
+    if (node->server->addr) {
+      freeaddrinfo(node->server->addr);
+    }
+    free(node->server);
+  }
+  if (node->ip) {
+    free(node->ip);
+  }
+  if (node->tcp) {
+    free(node->tcp);
+  }
 
   free(node);
 }
