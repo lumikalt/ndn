@@ -20,8 +20,7 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0)
-    errored("ERR: Failed to send the NODES request",
-            node); // Changed to errored
+    errored("ERR: Failed to send the NODES request", node);
   else
     printf("OK: Requested nodes for net %03d\n", net);
 
@@ -33,7 +32,7 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   char response[15];
   if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0)
-    errored("ERR: No response from the server", node); // Changed to errored
+    errored("ERR: No response from the server", node);
   else if (strncmp(response, ok, 15) != 0)
     printf("ERR: Server response did not match the spec");
   else
@@ -53,12 +52,14 @@ NodeList *ndn_nodes(Node *node, u16 net) {
       if (n == 0)
         printf("OK: Finished reading nodes\n");
       else
-        errored("ERR: No response from the server", node); // Changed to errored
+        errored("ERR: No response from the server", node);
 
       break;
     }
 
     buffer[n] = '\0'; // Null-terminate the received data
+
+    printf("Received: %s\n", buffer);
 
     // Handle all but the last line, which may be incomplete
     usize line_num = str_char_count(buffer, '\n');
@@ -80,6 +81,9 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
       sscanf(buffer, "%s %s", nodes->ip[nodes->size - 1],
              nodes->tcp[nodes->size - 1]);
+
+      printf("Node %zu: %s %s\n", nodes->size, nodes->ip[nodes->size - 1],
+             nodes->tcp[nodes->size - 1]);
     }
 
     // Handle the last line, which may be incomplete
@@ -89,7 +93,7 @@ NodeList *ndn_nodes(Node *node, u16 net) {
       // line
       usize buffer_len = strlen(buffer);
       if (line_len + buffer_len > 520) {
-        errored("ERR: Incomplete line is too long", node); // Changed to errored
+        errored("ERR: Incomplete line is too long", node);
         break;
       }
 
@@ -135,7 +139,7 @@ void ndn_register(Node *node, u16 net) {
 
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0)
-    errored("ERR: Failed to send the join request", node); // Changed to errored
+    errored("ERR: Failed to send the join request", node);
   else
     printf("OK: Requested join to net %03d\n", net);
 
@@ -147,7 +151,7 @@ void ndn_register(Node *node, u16 net) {
   if (n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                    &s->addr->ai_addrlen),
       n <= 0)
-    errored("ERR: No response from the server", node); // Changed to errored
+    errored("ERR: No response from the server", node);
   else if (strncmp(response, ok, 6) != 0)
     printf("ERR: Server refused the connection to net %03d\n", net);
   else
@@ -165,8 +169,7 @@ void ndn_unregister(Node *node, u16 net) {
 
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0)
-    errored("ERR: Failed to send the leave request",
-            node); // Changed to errored
+    errored("ERR: Failed to send the leave request", node);
   else
     printf("OK: Requested leave from net %03d\n", net);
 
@@ -177,7 +180,7 @@ void ndn_unregister(Node *node, u16 net) {
 
   if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0)
-    errored("ERR: No response from the server", node); // Changed to errored
+    errored("ERR: No response from the server", node);
   else if (strncmp(response, ok, 8) != 0)
     printf("ERR: Server refused the connection to net %03d\n", net);
   else
