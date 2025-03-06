@@ -3,6 +3,7 @@
 #include "protocols/udp.h"
 #include "types.h"
 
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,49 +28,53 @@ void ndn_help() {
 void ndn_join(Node *node, u16 net) {
   printf("Joining network %03d\n", net);
 
-  NodeList *network = ndn_nodes((Node *)node->server, net);
-  struct addrinfo hints, *res;
-  printf("\nabc\n");
+  NodeList *network = ndn_nodes(node, net);
   if (network->size == 0) {
     printf("Lone node, waiting for others\n");
-  } else {
-    // Connect to a random node in the network
-    int node_id = rand() % network->size;
-    char *node_ip = network->ip[node_id];
-    char *node_tcp = network->tcp[node_id];
-
-    printf("Attempting connection to %s:%s\n", node_ip, node_tcp);
-
-    // TCP port string to integer
-    int node_port = atoi(node_tcp);
-    if (node_port <= 0) {
-      return;
-    }
-
-    // create TCP socket
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) {
-      printf("Failed to create socket");
-      return;
-    }
-
-    // node setup
-    struct sockaddr_in node_addr;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-
-    if (connect(sockfd, (struct sockaddr *)&node_addr, sizeof(node_addr)) < 0) {
-      printf("Connection to nearby node failed");
-      close(sockfd);
-      return;
-    }
+    return;
   }
 
-  ndn_register(node, net);
+  // Connect to a random node in the network
+  int node_id = rand() % network->size;
+  char *node_ip = network->ip[node_id];
+  char *node_tcp = network->tcp[node_id];
 
+  printf("Attempting connection to %s:%s\n", node_ip, node_tcp);
+
+  // Create TCP socket
+  int node_port = socket(AF_INET, SOCK_STREAM, 0);
+  if (node_port < 0) {
+    perror("Failed to create socket");
+    return;
+  }
+
+  // node setup
+  struct addrinfo hints, *res;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+
+  // Resolve the node IP and TCP port using getaddrinfo
+  int status = getaddrinfo(node_ip, node_tcp, &hints, &res);
+  if (status != 0) {
+    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+    close(node_port);
+    return;
+  }
+
+
+  if (connect(node_port, res->ai_addr, res->ai_addrlen) < 0) {
+    perror("Connection to nearby node failed");
+    close(node_port);
+    freeaddrinfo(res);
+    return;
+  }
+
+  printf("Connected to %s:%s\n", node_ip, node_tcp);
   freeaddrinfo(res);
 }
+
+
 
 void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
   printf("Directly joining network %d, linking to %s:%s\n", net, connectIP,

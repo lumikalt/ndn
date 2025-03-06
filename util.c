@@ -211,7 +211,7 @@ void process_input_commands(Node *node, char *input) {
       return;
     }
 
-    // ndn_join(node, atoi(net));
+    ndn_join(node, atoi(net));
     printf("Joining network %s...\n", net);
     return;
   }
