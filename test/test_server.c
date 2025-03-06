@@ -64,6 +64,12 @@ int main(int argc, char **argv) {
   printf("Sent %d bytes to %s:%d\n", bytes_sent,
          inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
+  int code;
+loop:
+  scanf("%d", &code);
+  if (code != 1)
+    goto loop;
+
   close(server_fd);
   return 0;
 }
