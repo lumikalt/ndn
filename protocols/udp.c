@@ -9,7 +9,9 @@
 /// Request the list of nodes in the network
 NodeList *ndn_nodes(Node *node, u16 net) {
   Server *s = node->server;
-  NodeList *nodes = malloc(10 * sizeof(NodeList));
+  NodeList *nodes = malloc(sizeof(NodeList));
+  nodes->ip = malloc(10 * sizeof(char *));
+  nodes->tcp = malloc(10 * sizeof(char *));
   nodes->size = 0;
   nodes->capacity = 10;
 
@@ -34,14 +36,16 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   sprintf(ok, "NODESLIST %03d\n", net);
 #pragma GCC diagnostic pop
 
-  if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
+  if ((n = recvfrom(s->fd, response, 4096, 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0)
     errored("ERR: No response from the server", node);
+
+  printf("OK: Response (%zu): %s\n", n, response);
 
   if (strncmp(response, ok, 14) != 0)
     errored("ERR: Server response did not match the spec", node);
 
-  char *string = response + 15;
+  char *string = response + 14;
 
   printf("List: %s\n", string);
 
@@ -49,21 +53,25 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   /* Parse the string */
 
-  // usize len = strlen(response);
+  usize len = strlen(string);
 
-  // for (usize i = 0; i < str_char_count(response, '\n'); i++) {
-  //   char *ip = strtok(response, " ");
-  //   char *tcp = strtok(NULL, " ");
+  for (usize i = 0; i < str_char_count(string, '\n'); i++) {
+    char *ip = strtok(string, " ");
+    char *tcp = strtok(NULL, " ");
 
-  //   if (nodes->size == nodes->capacity) {
-  //     nodes->capacity *= 2;
-  //     nodes = realloc(nodes, nodes->capacity * sizeof(NodeList));
-  //   }
+    if (nodes->size == nodes->capacity) {
+      nodes->capacity *= 2;
+      nodes->ip = realloc(nodes->ip, nodes->capacity * sizeof(char *));
+      nodes->tcp = realloc(nodes->tcp, nodes->capacity * sizeof(char *));
+    }
 
-  //   nodes->ip[nodes->size] = ip;
-  //   nodes->tcp[nodes->size] = tcp;
-  //   nodes->size++;
-  // }
+    nodes->ip[nodes->size] = malloc(strlen(ip) + 1);
+    nodes->tcp[nodes->size] = malloc(strlen(tcp) + 1);
+    strcpy(nodes->ip[nodes->size], ip);
+    strcpy(nodes->tcp[nodes->size], tcp);
+
+    nodes->size++;
+  }
 
   return nodes;
 }
