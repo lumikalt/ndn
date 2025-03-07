@@ -4,14 +4,19 @@
 
 /* Topology protocol */
 
-void ndn_entry(Node *);
+// Node requesting link
+void ndn_entry(Node *node, char *ip, char *tcp);
 
-void ndn_safe(Node *);
+// Node sending its external link
+void ndn_safe(Node *, char *ip, char *tcp);
 
 /* Object protocol */
 
-void ndn_interest(Node *);
+// Node interested in an object
+void ndn_interest(Node *, Object);
 
-void ndn_object(Node *);
+// Node has the object
+void ndn_object(Node *, Object);
 
-void ndn_noobject(Node *);
+// Node doesn't have the object
+void ndn_noobject(Node *, Object);
