@@ -21,10 +21,12 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   sprintf(buffer, "NODES %03d", net);
 
   if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
-                  s->addr->ai_addrlen)) <= 0)
-    errored("ERR: Failed to send the NODES request", node);
+                  s->addr->ai_addrlen)) <= 0) {
+    fprintf(stderr, RED "ERR" CLEAR "\tFailed to send the nodes request\n");
+    return NULL;
+  }
 
-  printf("OK: Requested nodes for net %03d\n", net);
+  printf(CYAN "NOTICE" CLEAR "\tRequested nodes for net %03d\n", net);
 
   /* Wait for the OK */
 
@@ -37,15 +39,22 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 #pragma GCC diagnostic pop
 
   if ((n = recvfrom(s->fd, response, 4096, 0, s->addr->ai_addr,
-                    &s->addr->ai_addrlen)) <= 0)
-    errored("ERR: No response from the server", node);
+                    &s->addr->ai_addrlen)) <= 0) {
+    fprintf(stderr, RED "ERR" CLEAR "\tNo response from the server\n");
+    free(response);
+    return NULL;
+  }
 
-  if (strncmp(response, ok, 14) != 0)
-    errored("ERR: Server response did not match the spec", node);
+  if (strncmp(response, ok, 14) != 0) {
+    fprintf(stderr,
+            RED "ERR" CLEAR "\tServer response did not match the spec\n");
+    free(response);
+    return NULL;
+  }
 
   char *string = response + 14;
 
-  printf("OK: Parsing nodes\n");
+  printf(CYAN "NOTICE" CLEAR "\tParsing nodes\n");
 
   /* Parse the string */
 
@@ -85,24 +94,28 @@ void ndn_register(Node *node, u16 net) {
   sprintf(buffer, "REG %03d %s %s", net, node->ip, node->tcp);
 
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
-                  s->addr->ai_addrlen)) <= 0)
-    errored("ERR: Failed to send the join request", node);
-  else
-    printf("OK: Requested join to net %03d\n", net);
+                  s->addr->ai_addrlen)) <= 0) {
+    fprintf(stderr, RED "ERR" CLEAR "\tFailed to send the join request\n");
+    return;
+  }
+
+  printf(CYAN "NOTICE" CLEAR "\tRequested registration in net %03d\n", net);
 
   /* Wait for the OK */
 
   const char *ok = "OKREG";
   char response[6];
 
-  if (n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
-                   &s->addr->ai_addrlen),
-      n <= 0)
-    errored("ERR: No response from the server", node);
-  else if (strncmp(response, ok, 6) != 0)
-    printf("ERR: Server refused the connection to net %03d\n", net);
-  else
-    printf("OK: Successfully joined network %d\n", net);
+  if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
+                    &s->addr->ai_addrlen)) <= 0) {
+    fprintf(stderr, RED "ERR" CLEAR "\tNo response from the server\n");
+    return;
+  } else if (strncmp(response, ok, 6) != 0) {
+    fprintf(stderr, RED "ERR" CLEAR "\tServer refused the registration\n");
+  } else {
+    printf(GREEN "OK" CLEAR "\tSuccessfully registered in the network %d\n",
+           net);
+  }
 }
 
 /// Unregister the node from the network, and check if the server accepted the
@@ -115,10 +128,12 @@ void ndn_unregister(Node *node, u16 net) {
   sprintf(buffer, "UNREG %03d %s %s", net, node->ip, node->tcp);
 
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
-                  s->addr->ai_addrlen)) <= 0)
-    errored("ERR: Failed to send the leave request", node);
-  else
-    printf("OK: Requested leave from net %03d\n", net);
+                  s->addr->ai_addrlen)) <= 0) {
+    fprintf(stderr, RED "ERR" CLEAR "\tFailed to send unregistration request\n");
+    return;
+  }
+
+  printf(CYAN "NOTICE" CLEAR "\tRequested unregistration from net %03d\n", net);
 
   /* Wait for the OK */
 
@@ -126,10 +141,12 @@ void ndn_unregister(Node *node, u16 net) {
   char response[8];
 
   if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
-                    &s->addr->ai_addrlen)) <= 0)
-    errored("ERR: No response from the server", node);
-  else if (strncmp(response, ok, 8) != 0)
-    printf("ERR: Server refused the connection to net %03d\n", net);
-  else
-    printf("OK: Successfully left network %d\n", net);
+                    &s->addr->ai_addrlen)) <= 0) {
+    fprintf(stderr, RED "ERR" CLEAR "\tNo response from the server\n");
+    return;
+  } else if (strncmp(response, ok, 8) != 0)
+    printf(RED "ERR" CLEAR "\tServer refused the connection to net %03d\n",
+           net);
+
+  printf(GREEN "OK" CLEAR "\tSuccessfully left network %d\n", net);
 }

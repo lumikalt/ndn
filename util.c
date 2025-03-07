@@ -194,9 +194,13 @@ int is_valid_name(char *name) {
   return 1;
 }
 
-void errored(const char *msg, Node *node) {
-  clean_node(node);
-
-  printf("%s", msg);
-  exit(1);
+void clear_nodelist(NodeList *nodes) {
+  for (usize i = 0; i < nodes->size; i++) {
+    free(nodes->ip[i]);
+    free(nodes->tcp[i]);
+  }
+  free(nodes->ip);
+  free(nodes->tcp);
+  free(nodes);
 }
+

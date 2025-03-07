@@ -1,5 +1,6 @@
 #include "commands.h"
 #include "list.h"
+#include "protocols/tcp.h"
 #include "protocols/udp.h"
 #include "types.h"
 #include "util.h"
@@ -11,27 +12,26 @@
 #include <unistd.h>
 
 void ndn_help() {
-
-  printf("Commands:\n"
-         "\t(h)  help - show this message\n"
-         "\t(j)  join <net> - join the network (000-999)\n"
-         "\t(dj) direct join <net> <IP> <TCP> - directly join a network\n"
-         "\t(c)  create <name> - create an object\n"
-         "\t(dl) delete <name> - delete an object\n"
-         "\t(r)  retrieve <name> - re<trieve an object\n"
-         "\t(st) show_topology - show the neighbourhood's topology\n"
-         "\t(sn) show_names - show the object names in this node\n"
-         "\t(si) show_interest_table - show the interest table\n"
-         "\t(l)  leave - leave the network\n"
-         "\t(x)  exit - close the program\n");
+  printf(CYAN "NOTICE" CLEAR "\tCommands:\n"
+              "\t(h)  help - show this message\n"
+              "\t(j)  join <net> - join the network (000-999)\n"
+              "\t(dj) direct join <net> <IP> <TCP> - directly join a network\n"
+              "\t(c)  create <name> - create an object\n"
+              "\t(dl) delete <name> - delete an object\n"
+              "\t(r)  retrieve <name> - retrieve an object\n"
+              "\t(st) show_topology - show the neighbourhood's topology\n"
+              "\t(sn) show_names - show the object names in this node\n"
+              "\t(si) show_interest_table - show the interest table\n"
+              "\t(l)  leave - leave the network\n"
+              "\t(x)  exit - close the program\n");
 }
 
 void ndn_join(Node *node, u16 net) {
-  printf("Joining network %03d\n", net);
+  printf(CYAN "NOTICE" CLEAR "\tJoining network %03d\n", net);
 
   NodeList *network = ndn_nodes(node, net);
   if (network->size == 0) {
-    printf("Lone node, waiting for others\n");
+    printf(GREEN "OK" CLEAR "\tLone node, waiting for others\n");
     return;
   }
 
@@ -40,12 +40,13 @@ void ndn_join(Node *node, u16 net) {
   char *node_ip = network->ip[node_id];
   char *node_tcp = network->tcp[node_id];
 
-  printf("Attempting connection to %s:%s\n", node_ip, node_tcp);
+  printf(CYAN "NOTICE" CLEAR "\tExternal %s:%s chosen, attempting connection\n",
+         node_ip, node_tcp);
 
   // Create TCP socket
-  int node_port = socket(AF_INET, SOCK_STREAM, 0);
-  if (node_port < 0) {
-    errored("Failed to create socket", node);
+  int external_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (external_fd < 0) {
+    fprintf(stderr, RED "ERR" CLEAR "\tFailed to create socket\n");
     return;
   }
 
@@ -58,88 +59,96 @@ void ndn_join(Node *node, u16 net) {
   // Resolve the node IP and TCP port using getaddrinfo
   int status = getaddrinfo(node_ip, node_tcp, &hints, &res);
   if (status != 0) {
-    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
-    close(node_port);
+    fprintf(stderr, RED "ERR" CLEAR "\tgetaddrinfo error: %s\n",
+            gai_strerror(status));
+    close(external_fd);
     return;
   }
 
-  if (connect(node_port, res->ai_addr, res->ai_addrlen) < 0) {
-    perror("Connection to nearby node failed");
-    close(node_port);
+  if (connect(external_fd, res->ai_addr, res->ai_addrlen) < 0) {
+    perror(RED "ERR" CLEAR "\tConnection to nearby node failed");
+    close(external_fd);
     freeaddrinfo(res);
     return;
   }
 
-  printf("Connected to %s:%s\n", node_ip, node_tcp);
+  printf(GREEN "NOTICE" CLEAR "\tConnected to external %s:%s\n", node_ip,
+         node_tcp);
 
   node->external->ip = node_ip;
   node->external->tcp = node_tcp;
   node->external->addr = res;
-  node->external->fd = node_port;
+  node->external->fd = external_fd;
+
+  ndn_register(node, net);
 }
 
 void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
-  int fd_TCP, errcode;
+  int external_fd, errcode;
   ssize_t n;
   struct addrinfo hints, *res;
   char buffer[128];
 
-  printf("\nAAAAAAAAAAAAA\n");
+  printf(CYAN "NOTICE" CLEAR "\tDirectly joining network %d\n", net);
   node->external->ip = connectIP;
   node->external->tcp = connectTCP;
 
   // Create and connect the TCP socket to connectIP:connectTCP
-  fd_TCP = socket(AF_INET, SOCK_STREAM, 0);
-  if (fd_TCP == -1) {
-    perror("socket");
+  if ((external_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    perror(RED "ERR" CLEAR "\tsocket");
     exit(1);
   }
+
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
-  errcode = getaddrinfo(connectIP, connectTCP, &hints, &res);
-  if (errcode != 0) {
-    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(errcode));
+
+  if ((errcode = getaddrinfo(connectIP, connectTCP, &hints, &res)) != 0) {
+    fprintf(stderr, RED "ERR" CLEAR "\tgetaddrinfo: %s\n",
+            gai_strerror(errcode));
     exit(1);
   }
-  n = connect(fd_TCP, res->ai_addr, res->ai_addrlen);
-  if (n == -1) {
-    perror("connect");
+
+  if ((n = connect(external_fd, res->ai_addr, res->ai_addrlen)) == -1) {
+    perror(RED "ERR" CLEAR "\tconnect");
     exit(1);
   }
   freeaddrinfo(res);
 
-
-  //ENTRY
+  // ENTRY
   snprintf(buffer, sizeof(buffer), "ENTRY %s %s\n", node->ip, node->tcp);
-  n = write(fd_TCP, buffer, strlen(buffer));
+  n = write(external_fd, buffer, strlen(buffer));
   if (n < 0) {
-    perror("write");
+    perror(RED "ERR" CLEAR "\twrite");
     exit(1);
   }
 
-  //wait for the SAFE response
+  // wait for the SAFE response
   memset(buffer, 0, sizeof(buffer));
-  n = read(fd_TCP, buffer, sizeof(buffer) - 1);
-  if (n < 0) {
-    perror("read");
+  if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) < 0) {
+    perror(RED "ERR" CLEAR "\tread");
     exit(1);
   }
 
-  // check "SAFE
+  // check "SAFE IP TCP\n"
   char expected[128];
-  snprintf(expected, sizeof(expected), "SAFE %s %s\n", node->external->ip, node->external->tcp);
+  snprintf(expected, sizeof(expected), "SAFE %s %s\n", node->external->ip,
+           node->external->tcp);
   if (strncmp(buffer, expected, strlen(expected)) != 0) {
-    fprintf(stderr, "Unexpected response: %s\n", buffer);
+    fprintf(stderr, RED "ERR" CLEAR "\tUnexpected response: %s\n", buffer);
     exit(1);
   }
 
-  //off you go buddy
-  printf("Directly joining network %d, linking to %s:%s\n", net, connectIP, connectTCP);
+  ndn_safe(node, connectIP, connectTCP);
+
+  // off you go buddy
+  printf(GREEN "OK" CLEAR
+               "\tDirectly joined network %d, linked to external %s:%s\n",
+         net, connectIP, connectTCP);
 }
 
 void ndn_create(Node *node, const char *name) {
-  printf("Creating object %s\n", name);
+  printf(CYAN "NOTICE" CLEAR "\tCreating object %s\n", name);
 
   Object object = malloc(strlen(name) + 1);
   strcpy(object, name);
@@ -148,54 +157,56 @@ void ndn_create(Node *node, const char *name) {
 }
 
 void ndn_delete(Node *node, const char *name) {
-  printf("Deleting object %s\n", name);
+  printf(CYAN "NOTICE" CLEAR "\tDeleting object %s\n", name);
 
   list_remove(node->objects, (char *)name);
 }
 
 void ndn_retrieve(Node *node, const char *name) {
-  printf("Retrieving object %s\n", name);
+  printf(CYAN "NOTICE" CLEAR "\tRetrieving object %s\n", name);
 
   ObjectList *object = list_find(node->objects, (char *)name);
   if (object != NULL) {
-    printf("Already in node\n");
+    printf(GREEN "OK" CLEAR "\tAlready in node\n");
     return;
   }
 
-  printf("Not in node, requesting to adjacent nodes\n");
+  printf(CYAN "NOTICE" CLEAR "\tNot in node, requesting to adjacent nodes\n");
 
   // TODO: Send interest to adjacent nodes
 }
 
 void ndn_show_topology(Node *node) {
-  printf("Network topology:\n");
-  printf("\tSafeguard: %s:%s\n", node->safeguard->ip, node->safeguard->tcp);
-  printf("\tExternal: %s:%s\n", node->external->ip, node->external->tcp);
-  printf("\tInternal:\n");
+  printf(CYAN "NOTICE" CLEAR "\tNetwork topology:\n");
+  printf(CYAN "NOTICE" CLEAR "\t\tSafeguard: %s:%s\n", node->safeguard->ip,
+         node->safeguard->tcp);
+  printf(CYAN "NOTICE" CLEAR "\t\tExternal: %s:%s\n", node->external->ip,
+         node->external->tcp);
+  printf(CYAN "NOTICE" CLEAR "\t\tInternal:\n");
   for (usize i = 0; i < node->internal_size; i++) {
-    printf("\t\t%s:%s\n", node->internal[i]->ip, node->internal[i]->tcp);
+    printf(CYAN "NOTICE" CLEAR "\t\t\t%s:%s\n", node->internal[i]->ip,
+           node->internal[i]->tcp);
   }
 }
 
 void ndn_show_names(Node *node) {
-  printf("Owned:\n");
+  printf(CYAN "NOTICE" CLEAR "\tOwned:\n");
   list_print(node->objects);
 
   // print the cache
-  printf("Cached:\n");
+  printf(CYAN "NOTICE" CLEAR "\tCached:\n");
   for (usize i = 0; i < node->cache_size; i++) {
     if (node->cache[i] != NULL) {
-      printf("\t%s\n", node->cache[i]);
+      printf(CYAN "NOTICE" CLEAR "\t\t%s\n", node->cache[i]);
     }
   }
 }
 
 void ndn_show_interest_table(Node *node) {
-  printf("Interest:\n");
+  printf(CYAN "NOTICE" CLEAR "\tInterest:\n");
   list_print_interests(node->interests);
 }
 
-void ndn_leave(Node *node) { printf("Leaving network\n"); }
-
-// void ndn_exit(Node *node) { printf("Exiting program\n"); } // Select handles
-// this
+void ndn_leave(Node *node) {
+  printf(CYAN "NOTICE" CLEAR "\tLeaving network\n");
+}
