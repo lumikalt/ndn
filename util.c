@@ -1,7 +1,5 @@
 #include "util.h"
-#include "commands.h"
 #include "list.h"
-#include "protocols/udp.h"
 #include "types.h"
 
 #include <netdb.h>
@@ -195,109 +193,6 @@ int is_valid_name(char *name) {
       return 0;
   }
   return 1;
-}
-
-void process_input_commands(Node *node, char *input) {
-  char net[4], ip[16], port[6], name[101];
-  int pos;
-  input[strcspn(input, "\n")] = '\0';
-
-  //---nodes---
-  if ((strcmp(input, "nodes") == 0) || (strcmp(input, "n") == 0)) {
-    NodeList *nodes = ndn_nodes(node, 123);
-
-    for (usize i = 0; i < nodes->size; i++) {
-      printf("(i) %s:%s\n", nodes->ip[i], nodes->tcp[i]);
-    }
-
-    return;
-  }
-  //----------
-
-  //---join---
-  if ((sscanf(input, "join %3s%n", net, &pos) == 1 && input[pos] == '\0') ||
-      (sscanf(input, "j %3s%n", net, &pos) == 1 && input[pos] == '\0')) {
-
-    if (!is_valid_net(net)) {
-      printf("Wrong input, it must be 3 digits.\n");
-      return;
-    }
-
-    ndn_join(node, atoi(net));
-    printf("Joining network %s...\n", net);
-    return;
-  }
-  //----------
-
-  //---direct join---
-  if ((sscanf(input, "direct join %15s %5s%n", ip, port, &pos) == 2 &&
-       input[pos] == '\0') ||
-      (sscanf(input, "dj %15s %5s%n", ip, port, &pos) == 2 &&
-       input[pos] == '\0')) {
-
-    if (!is_valid_ip(ip)) {
-      printf("Invalid IP address\n");
-    } else if (!is_valid_port(port)) {
-      printf("Invalid port number\n");
-    } else {
-      printf("Direct joining via %s:%s\n", ip, port);
-
-      if (strcmp(ip, "0.0.0.0") == 0) {
-        printf("Created new network\n");
-      }
-    }
-
-    ndn_direct_join(node, atoi(net), ip, port);
-
-    return;
-  }
-
-  //----------
-
-  //---create---
-  if ((sscanf(input, "create %100s%n", name, &pos) == 1 &&
-       input[pos] == '\0') ||
-      (sscanf(input, "c %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
-
-    if (!is_valid_name(name)) {
-      printf("Invalid name (alphanumeric, 1-100 chars)\n");
-      return;
-    }
-
-    ndn_create(node, name);
-
-    printf("Created object '%s'\n", name);
-    return;
-  }
-  //----------
-
-  //---delete---
-  if ((sscanf(input, "delete %100s%n", name, &pos) == 1 &&
-       input[pos] == '\0') ||
-      (sscanf(input, "dl %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
-
-    if (!is_valid_name(name)) {
-      printf("Invalid name\n");
-      return;
-    }
-
-    ndn_delete(node, name);
-
-    printf("Deleted object '%s'\n", name);
-    return;
-  }
-  //----------
-
-  //---help---
-  if ((strcmp(input, "help") == 0) || (strcmp(input, "h") == 0)) {
-    ndn_help();
-    return;
-  }
-  //----------
-
-  // if the command does not exist
-  printf("That command does not exist. Please type '(h)elp' for the list of "
-         "commands\n");
 }
 
 void errored(const char *msg, Node *node) {
