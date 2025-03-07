@@ -79,6 +79,39 @@ void ndn_join(Node *node, u16 net) {
 }
 
 void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
+
+  int fd_TCP,errcode;
+  ssize_t n;
+  socklen_t addrlen;
+  struct addrinfo hints,*res;
+  struct sockaddr_in addr;
+  char buffer[128];
+
+
+  fd_TCP=socket(AF_INET,SOCK_STREAM,0);
+  if (fd_TCP==-1) exit(1);
+  memset(&hints,0,sizeof hints);
+  hints.ai_family=AF_INET;
+  hints.ai_socktype=SOCK_STREAM;
+
+
+  errcode=getaddrinfo(connectIP,connectTCP,&hints,&res);
+  if(errcode!=0)
+    exit(1);
+  n=connect(fd_TCP,res->ai_addr,res->ai_addrlen);
+  if(n==-1){
+    printf("impossible to connet to node");
+    exit(1);
+  }
+
+  //TODO: fazer pedido do entry
+  //pedir pedido de externo
+  //ligar
+  node->external->ip= connectIP;
+
+
+
+
   printf("Directly joining network %d, linking to %s:%s\n", net, connectIP,
          connectTCP);
 }

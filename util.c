@@ -253,7 +253,7 @@ void process_input_commands(Node *node, char *input) {
       }
     }
 
-    // ndn_register(node, 0);
+    ndn_direct_join(node, atoi(net), ip, port);
 
     return;
   }
