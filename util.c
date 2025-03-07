@@ -26,16 +26,6 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   node->objects = NULL;
   node->interests = NULL;
 
-  node->network = malloc(sizeof(NodeList));
-  if (!node->network) {
-    perror("malloc");
-    exit(1);
-  }
-  node->network->ip = NULL;
-  node->network->tcp = NULL;
-  node->network->size = 0;
-  node->network->capacity = 0;
-
   node->ip = ip;
   node->tcp = tcp;
   if (!node->ip || !node->tcp) {
@@ -130,15 +120,6 @@ void clean_node(Node *node) {
   }
   free(node->cache);
 
-  if (node->network) {
-    if (node->network->ip) {
-      free(node->network->ip);
-    }
-    if (node->network->tcp) {
-      free(node->network->tcp);
-    }
-    free(node->network);
-  }
   if (node->safeguard) {
     if (node->safeguard->addr) {
       freeaddrinfo(node->safeguard->addr);
@@ -158,7 +139,7 @@ void clean_node(Node *node) {
     free(node->external);
   }
   if (node->internal) {
-    for (usize i = 0; i < node->network->size; i++) {
+    for (usize i = 0; i < node->internal_size; i++) {
       if (node->internal[i]) {
         if (node->internal[i]->addr) {
           freeaddrinfo(node->internal[i]->addr);

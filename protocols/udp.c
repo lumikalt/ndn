@@ -26,13 +26,14 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   /* Wait for the OK */
 
+  char *response = calloc(4096, sizeof(char));
+
   char ok[15];
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-overflow"
   sprintf(ok, "NODESLIST %03d\n", net);
 #pragma GCC diagnostic pop
 
-  char response[14]; // NODESLIST 000n
   if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0)
     errored("ERR: No response from the server", node);
@@ -40,93 +41,29 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   if (strncmp(response, ok, 14) != 0)
     errored("ERR: Server response did not match the spec", node);
 
-  printf("OK: Receiving nodes in net %d\n", net);
+  char *string = response + 15;
 
-  /* Get the nodes */
-  // char buffer[256];
-  char *line = malloc(521); // Buffer to store incomplete lines
-  usize line_len = 0;
-  char *ptr;
-  while (true) {
-    // Check if there are no more bytes to read
-    n = recvfrom(s->fd, buffer, sizeof(buffer) - 1, 0, s->addr->ai_addr,
-                 &s->addr->ai_addrlen);
-    if (n <= 0) {
-      if (n == 0)
-        printf("OK: Finished reading nodes\n");
-      else
-        errored("ERR: No response from the server", node);
+  printf("List: %s\n", string);
 
-      break;
-    }
+  printf("OK: Parsing nodes\n");
 
-    buffer[n] = '\0'; // Null-terminate the received data
+  /* Parse the string */
 
-    printf("Received: %s\n", buffer);
+  // usize len = strlen(response);
 
-    // Handle all but the last line, which may be incomplete
-    usize line_num = str_char_count(buffer, '\n');
+  // for (usize i = 0; i < str_char_count(response, '\n'); i++) {
+  //   char *ip = strtok(response, " ");
+  //   char *tcp = strtok(NULL, " ");
 
-    for (usize j = 0; j < line_num - 1; j++) {
-      ptr = strchr(buffer, '\n');
-      *ptr = '\0';
+  //   if (nodes->size == nodes->capacity) {
+  //     nodes->capacity *= 2;
+  //     nodes = realloc(nodes, nodes->capacity * sizeof(NodeList));
+  //   }
 
-      nodes->size++;
-
-      if (nodes->size > nodes->capacity) {
-        nodes->capacity *= 2;
-        nodes->ip = realloc(nodes->ip, nodes->capacity * sizeof(char *));
-        nodes->tcp = realloc(nodes->tcp, nodes->capacity * sizeof(char *));
-      }
-
-      nodes->ip[nodes->size - 1] = malloc(256);
-      nodes->tcp[nodes->size - 1] = malloc(10);
-
-      sscanf(buffer, "%s %s", nodes->ip[nodes->size - 1],
-             nodes->tcp[nodes->size - 1]);
-
-      printf("Node %zu: %s %s\n", nodes->size, nodes->ip[nodes->size - 1],
-             nodes->tcp[nodes->size - 1]);
-    }
-
-    // Handle the last line, which may be incomplete
-    ptr = strchr(buffer, '\n');
-    if (ptr == NULL) {
-      // If the buffer does not contain a newline character, it is an
-      // incomplete line
-      usize buffer_len = strlen(buffer);
-      if (line_len + buffer_len > 520) {
-        errored("ERR: Incomplete line is too long", node);
-        break;
-      }
-
-      memcpy(line + line_len, buffer, buffer_len);
-      line_len += buffer_len;
-    } else {
-      // If the buffer contains a newline character, it is a complete line
-      *ptr = '\0';
-
-      nodes->size++;
-
-      if (nodes->size > nodes->capacity) {
-        nodes->capacity *= 2;
-        nodes->ip = realloc(nodes->ip, nodes->capacity * sizeof(char *));
-        nodes->tcp = realloc(nodes->tcp, nodes->capacity * sizeof(char *));
-      }
-
-      nodes->ip[nodes->size - 1] = malloc(256);
-      nodes->tcp[nodes->size - 1] = malloc(10);
-
-      sscanf(buffer, "%s %s", nodes->ip[nodes->size - 1],
-             nodes->tcp[nodes->size - 1]);
-
-      // Copy the incomplete line to the beginning of the buffer
-      memcpy(buffer, ptr + 1, strlen(ptr + 1));
-      line_len = 0;
-    }
-  }
-
-  free(line);
+  //   nodes->ip[nodes->size] = ip;
+  //   nodes->tcp[nodes->size] = tcp;
+  //   nodes->size++;
+  // }
 
   return nodes;
 }

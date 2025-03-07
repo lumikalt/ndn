@@ -52,7 +52,6 @@ typedef struct Node {
   Object *cache;
   usize cache_size;
 
-  NodeList *network;
   AdjacentNode *safeguard;
   AdjacentNode *external;
   AdjacentNode **internal;

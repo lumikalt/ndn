@@ -117,8 +117,8 @@ void ndn_show_topology(Node *node) {
   printf("\tSafeguard: %s:%s\n", node->safeguard->ip, node->safeguard->tcp);
   printf("\tExternal: %s:%s\n", node->external->ip, node->external->tcp);
   printf("\tInternal:\n");
-  for (usize i = 0; i < node->network->size; i++) {
-    printf("\t\t%s:%s\n", node->network->ip[i], node->network->tcp[i]);
+  for (usize i = 0; i < node->internal_size; i++) {
+    printf("\t\t%s:%s\n", node->internal[i]->ip, node->internal[i]->tcp);
   }
 }
 
