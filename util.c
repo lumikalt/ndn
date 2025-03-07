@@ -158,12 +158,6 @@ void clean_node(Node *node) {
     }
     free(node->server);
   }
-  if (node->ip) {
-    free(node->ip);
-  }
-  if (node->tcp) {
-    free(node->tcp);
-  }
 
   free(node);
 }
