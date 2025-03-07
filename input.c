@@ -20,7 +20,13 @@ void process_input_commands(Node *node, char *input) {
 
     for (usize i = 0; i < nodes->size; i++) {
       printf("(%zu) %s:%s\n", i, nodes->ip[i], nodes->tcp[i]);
+      free(nodes->ip[i]);
+      free(nodes->tcp[i]);
     }
+
+    free(nodes->ip);
+    free(nodes->tcp);
+    free(nodes);
 
     return;
   }
