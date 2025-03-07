@@ -19,7 +19,7 @@ void process_input_commands(Node *node, char *input) {
     NodeList *nodes = ndn_nodes(node, 123);
 
     for (usize i = 0; i < nodes->size; i++) {
-      printf("(i) %s:%s\n", nodes->ip[i], nodes->tcp[i]);
+      printf("(%zu) %s:%s\n", i, nodes->ip[i], nodes->tcp[i]);
     }
 
     return;
@@ -168,8 +168,9 @@ void user_in(int listener_fd, Node *node) {
               perror("write");
             }
 
-            if (!memcmp(buffer, "x", 1)) {
+            if (!memcmp(buffer, "x", 1) || !memcmp(buffer, "exit", 4)) {
               write(1, "Terminating\n", 12);
+              clean_node(node);
               exit(0);
             }
 
