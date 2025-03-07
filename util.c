@@ -180,8 +180,7 @@ int is_valid_ip(char *ip) {
 int is_valid_port(char *port) {
   char *end;
   long p = strtol(port, &end, 10);
-  return *end == '\0' && p > 0 &&
-         p <= 65535; // NOTE: confirmar se é o numero certo
+  return *end == '\0' && p > 0 && p <= 65535;
 }
 
 int is_valid_name(char *name) {
