@@ -22,4 +22,17 @@ $(EXEC): $(OBJ)
 clean:
 	rm -f $(OBJ) $(EXEC)
 
-.PHONY: all clean
+debug: CFLAGS += -g
+debug: clean $(EXEC)
+
+valgrind: debug
+	valgrind --leak-check=full \
+		--track-origins=yes \
+		--show-reachable=yes \
+		./$(EXEC) $(filter-out $@,$(MAKECMDGOALS))
+
+.PHONY: all clean valgrind
+
+# Prevent make from interpreting the command line arguments as make targets
+%:
+	@:
