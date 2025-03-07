@@ -81,34 +81,61 @@ void ndn_join(Node *node, u16 net) {
 void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
   int fd_TCP, errcode;
   ssize_t n;
-  socklen_t addrlen;
   struct addrinfo hints, *res;
-  struct sockaddr_in addr;
   char buffer[128];
 
+  printf("\nAAAAAAAAAAAAA\n");
+  node->external->ip = connectIP;
+  node->external->tcp = connectTCP;
+
+  // Create and connect the TCP socket to connectIP:connectTCP
   fd_TCP = socket(AF_INET, SOCK_STREAM, 0);
-  if (fd_TCP == -1)
+  if (fd_TCP == -1) {
+    perror("socket");
     exit(1);
+  }
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
-
   errcode = getaddrinfo(connectIP, connectTCP, &hints, &res);
-  if (errcode != 0)
+  if (errcode != 0) {
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(errcode));
     exit(1);
+  }
   n = connect(fd_TCP, res->ai_addr, res->ai_addrlen);
   if (n == -1) {
-    printf("impossible to connet to node");
+    perror("connect");
+    exit(1);
+  }
+  freeaddrinfo(res);
+
+
+  //ENTRY
+  snprintf(buffer, sizeof(buffer), "ENTRY %s %s\n", node->ip, node->tcp);
+  n = write(fd_TCP, buffer, strlen(buffer));
+  if (n < 0) {
+    perror("write");
     exit(1);
   }
 
-  // TODO: fazer pedido do entry
-  // pedir pedido de externo
-  // ligar
-  node->external->ip = connectIP;
+  //wait for the SAFE response
+  memset(buffer, 0, sizeof(buffer));
+  n = read(fd_TCP, buffer, sizeof(buffer) - 1);
+  if (n < 0) {
+    perror("read");
+    exit(1);
+  }
 
-  printf("Directly joining network %d, linking to %s:%s\n", net, connectIP,
-         connectTCP);
+  // check "SAFE
+  char expected[128];
+  snprintf(expected, sizeof(expected), "SAFE %s %s\n", node->external->ip, node->external->tcp);
+  if (strncmp(buffer, expected, strlen(expected)) != 0) {
+    fprintf(stderr, "Unexpected response: %s\n", buffer);
+    exit(1);
+  }
+
+  //off you go buddy
+  printf("Directly joining network %d, linking to %s:%s\n", net, connectIP, connectTCP);
 }
 
 void ndn_create(Node *node, const char *name) {
