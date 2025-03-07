@@ -63,7 +63,7 @@ void user_in(int listener_fd, Node *node) {
               perror("write");
             }
 
-            if (!memcmp(buffer, "_STOP", 5)) {
+            if (!memcmp(buffer, "x", 1)) {
               write(1, "Terminating\n", 12);
               exit(0);
             }
