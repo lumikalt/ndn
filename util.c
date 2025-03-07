@@ -207,7 +207,7 @@ void process_input_commands(Node *node, char *input) {
     NodeList *nodes = ndn_nodes(node, 123);
 
     for (usize i = 0; i < nodes->size; i++) {
-      printf("%s:%s\n", nodes->ip[i], nodes->tcp[i]);
+      printf("(i) %s:%s\n", nodes->ip[i], nodes->tcp[i]);
     }
 
     return;
