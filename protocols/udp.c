@@ -32,164 +32,160 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   sprintf(ok, "NODESLIST %03d\n", net);
 #pragma GCC diagnostic pop
 
-  printf("Expecting: `%s`\n", ok);
-
   char response[14]; // NODESLIST 000n
   if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0)
     errored("ERR: No response from the server", node);
   else {
-    printf("Received: `%s`\n", response);
     if (strncmp(response, ok, 14) != 0)
       errored("ERR: Server response did not match the spec", node);
     else
       printf("OK: Receiving nodes in net %d\n", net);
-  }
 
-  /* Get the nodes */
-  // char buffer[256];
-  char *line = malloc(521); // Buffer to store incomplete lines
-  usize line_len = 0;
-  char *ptr;
-  while (true) {
-    // Check if there are no more bytes to read
-    n = recvfrom(s->fd, buffer, sizeof(buffer) - 1, 0, s->addr->ai_addr,
-                 &s->addr->ai_addrlen);
-    if (n <= 0) {
-      if (n == 0)
-        printf("OK: Finished reading nodes\n");
-      else
-        errored("ERR: No response from the server", node);
+    /* Get the nodes */
+    // char buffer[256];
+    char *line = malloc(521); // Buffer to store incomplete lines
+    usize line_len = 0;
+    char *ptr;
+    while (true) {
+      // Check if there are no more bytes to read
+      n = recvfrom(s->fd, buffer, sizeof(buffer) - 1, 0, s->addr->ai_addr,
+                   &s->addr->ai_addrlen);
+      if (n <= 0) {
+        if (n == 0)
+          printf("OK: Finished reading nodes\n");
+        else
+          errored("ERR: No response from the server", node);
 
-      break;
-    }
-
-    buffer[n] = '\0'; // Null-terminate the received data
-
-    printf("Received: %s\n", buffer);
-
-    // Handle all but the last line, which may be incomplete
-    usize line_num = str_char_count(buffer, '\n');
-
-    for (usize j = 0; j < line_num - 1; j++) {
-      ptr = strchr(buffer, '\n');
-      *ptr = '\0';
-
-      nodes->size++;
-
-      if (nodes->size > nodes->capacity) {
-        nodes->capacity *= 2;
-        nodes->ip = realloc(nodes->ip, nodes->capacity * sizeof(char *));
-        nodes->tcp = realloc(nodes->tcp, nodes->capacity * sizeof(char *));
-      }
-
-      nodes->ip[nodes->size - 1] = malloc(256);
-      nodes->tcp[nodes->size - 1] = malloc(10);
-
-      sscanf(buffer, "%s %s", nodes->ip[nodes->size - 1],
-             nodes->tcp[nodes->size - 1]);
-
-      printf("Node %zu: %s %s\n", nodes->size, nodes->ip[nodes->size - 1],
-             nodes->tcp[nodes->size - 1]);
-    }
-
-    // Handle the last line, which may be incomplete
-    ptr = strchr(buffer, '\n');
-    if (ptr == NULL) {
-      // If the buffer does not contain a newline character, it is an incomplete
-      // line
-      usize buffer_len = strlen(buffer);
-      if (line_len + buffer_len > 520) {
-        errored("ERR: Incomplete line is too long", node);
         break;
       }
 
-      memcpy(line + line_len, buffer, buffer_len);
-      line_len += buffer_len;
-    } else {
-      // If the buffer contains a newline character, it is a complete line
-      *ptr = '\0';
+      buffer[n] = '\0'; // Null-terminate the received data
 
-      nodes->size++;
+      printf("Received: %s\n", buffer);
 
-      if (nodes->size > nodes->capacity) {
-        nodes->capacity *= 2;
-        nodes->ip = realloc(nodes->ip, nodes->capacity * sizeof(char *));
-        nodes->tcp = realloc(nodes->tcp, nodes->capacity * sizeof(char *));
+      // Handle all but the last line, which may be incomplete
+      usize line_num = str_char_count(buffer, '\n');
+
+      for (usize j = 0; j < line_num - 1; j++) {
+        ptr = strchr(buffer, '\n');
+        *ptr = '\0';
+
+        nodes->size++;
+
+        if (nodes->size > nodes->capacity) {
+          nodes->capacity *= 2;
+          nodes->ip = realloc(nodes->ip, nodes->capacity * sizeof(char *));
+          nodes->tcp = realloc(nodes->tcp, nodes->capacity * sizeof(char *));
+        }
+
+        nodes->ip[nodes->size - 1] = malloc(256);
+        nodes->tcp[nodes->size - 1] = malloc(10);
+
+        sscanf(buffer, "%s %s", nodes->ip[nodes->size - 1],
+               nodes->tcp[nodes->size - 1]);
+
+        printf("Node %zu: %s %s\n", nodes->size, nodes->ip[nodes->size - 1],
+               nodes->tcp[nodes->size - 1]);
       }
 
-      nodes->ip[nodes->size - 1] = malloc(256);
-      nodes->tcp[nodes->size - 1] = malloc(10);
+      // Handle the last line, which may be incomplete
+      ptr = strchr(buffer, '\n');
+      if (ptr == NULL) {
+        // If the buffer does not contain a newline character, it is an
+        // incomplete line
+        usize buffer_len = strlen(buffer);
+        if (line_len + buffer_len > 520) {
+          errored("ERR: Incomplete line is too long", node);
+          break;
+        }
 
-      sscanf(buffer, "%s %s", nodes->ip[nodes->size - 1],
-             nodes->tcp[nodes->size - 1]);
+        memcpy(line + line_len, buffer, buffer_len);
+        line_len += buffer_len;
+      } else {
+        // If the buffer contains a newline character, it is a complete line
+        *ptr = '\0';
 
-      // Copy the incomplete line to the beginning of the buffer
-      memcpy(buffer, ptr + 1, strlen(ptr + 1));
-      line_len = 0;
+        nodes->size++;
+
+        if (nodes->size > nodes->capacity) {
+          nodes->capacity *= 2;
+          nodes->ip = realloc(nodes->ip, nodes->capacity * sizeof(char *));
+          nodes->tcp = realloc(nodes->tcp, nodes->capacity * sizeof(char *));
+        }
+
+        nodes->ip[nodes->size - 1] = malloc(256);
+        nodes->tcp[nodes->size - 1] = malloc(10);
+
+        sscanf(buffer, "%s %s", nodes->ip[nodes->size - 1],
+               nodes->tcp[nodes->size - 1]);
+
+        // Copy the incomplete line to the beginning of the buffer
+        memcpy(buffer, ptr + 1, strlen(ptr + 1));
+        line_len = 0;
+      }
     }
+
+    free(line);
+
+    return nodes;
   }
 
-  free(line);
+  /// Register the node in the network, and check if the server accepted the
+  /// node entry.
+  void ndn_register(Node * node, u16 net) {
+    ssize_t n;
+    char buffer[256];
+    Server *s = node->server;
 
-  return nodes;
-}
+    sprintf(buffer, "REG %03d %s %s", net, node->ip, node->tcp);
 
-/// Register the node in the network, and check if the server accepted the node
-/// entry.
-void ndn_register(Node *node, u16 net) {
-  ssize_t n;
-  char buffer[256];
-  Server *s = node->server;
+    if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
+                    s->addr->ai_addrlen)) <= 0)
+      errored("ERR: Failed to send the join request", node);
+    else
+      printf("OK: Requested join to net %03d\n", net);
 
-  sprintf(buffer, "REG %03d %s %s", net, node->ip, node->tcp);
+    /* Wait for the OK */
 
-  if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
-                  s->addr->ai_addrlen)) <= 0)
-    errored("ERR: Failed to send the join request", node);
-  else
-    printf("OK: Requested join to net %03d\n", net);
+    const char *ok = "OKREG";
+    char response[6];
 
-  /* Wait for the OK */
+    if (n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
+                     &s->addr->ai_addrlen),
+        n <= 0)
+      errored("ERR: No response from the server", node);
+    else if (strncmp(response, ok, 6) != 0)
+      printf("ERR: Server refused the connection to net %03d\n", net);
+    else
+      printf("OK: Successfully joined network %d\n", net);
+  }
 
-  const char *ok = "OKREG";
-  char response[6];
+  /// Unregister the node from the network, and check if the server accepted the
+  /// node exit.
+  void ndn_unregister(Node * node, u16 net) {
+    ssize_t n;
+    char buffer[256];
+    Server *s = node->server;
 
-  if (n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
-                   &s->addr->ai_addrlen),
-      n <= 0)
-    errored("ERR: No response from the server", node);
-  else if (strncmp(response, ok, 6) != 0)
-    printf("ERR: Server refused the connection to net %03d\n", net);
-  else
-    printf("OK: Successfully joined network %d\n", net);
-}
+    sprintf(buffer, "UNREG %03d %s %s", net, node->ip, node->tcp);
 
-/// Unregister the node from the network, and check if the server accepted the
-/// node exit.
-void ndn_unregister(Node *node, u16 net) {
-  ssize_t n;
-  char buffer[256];
-  Server *s = node->server;
+    if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
+                    s->addr->ai_addrlen)) <= 0)
+      errored("ERR: Failed to send the leave request", node);
+    else
+      printf("OK: Requested leave from net %03d\n", net);
 
-  sprintf(buffer, "UNREG %03d %s %s", net, node->ip, node->tcp);
+    /* Wait for the OK */
 
-  if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
-                  s->addr->ai_addrlen)) <= 0)
-    errored("ERR: Failed to send the leave request", node);
-  else
-    printf("OK: Requested leave from net %03d\n", net);
+    const char *ok = "OKUNREG";
+    char response[8];
 
-  /* Wait for the OK */
-
-  const char *ok = "OKUNREG";
-  char response[8];
-
-  if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
-                    &s->addr->ai_addrlen)) <= 0)
-    errored("ERR: No response from the server", node);
-  else if (strncmp(response, ok, 8) != 0)
-    printf("ERR: Server refused the connection to net %03d\n", net);
-  else
-    printf("OK: Successfully left network %d\n", net);
-}
+    if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
+                      &s->addr->ai_addrlen)) <= 0)
+      errored("ERR: No response from the server", node);
+    else if (strncmp(response, ok, 8) != 0)
+      printf("ERR: Server refused the connection to net %03d\n", net);
+    else
+      printf("OK: Successfully left network %d\n", net);
+  }
