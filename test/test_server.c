@@ -30,45 +30,45 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  // Receive data from the client
-  char buffer[128];
-  struct sockaddr_in client_addr;
-  socklen_t client_addr_len = sizeof(client_addr);
+  int code = 0;
+  while (code != 1) {
+    // Receive data from the client
+    char buffer[128];
+    struct sockaddr_in client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
 
-  int bytes_received =
-      recvfrom(server_fd, buffer, sizeof(buffer), 0,
-               (struct sockaddr *)&client_addr, &client_addr_len);
-  if (bytes_received == -1) {
-    perror("recvfrom");
-    exit(1);
+    int bytes_received =
+        recvfrom(server_fd, buffer, sizeof(buffer), 0,
+                 (struct sockaddr *)&client_addr, &client_addr_len);
+    if (bytes_received == -1) {
+      perror("recvfrom");
+      exit(1);
+    }
+
+    printf("Received %d bytes from %s:%d\n~>\t`%s`\n", bytes_received,
+           inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port),
+           buffer);
+
+    // Send response to the client
+    char response[] = "NODESLIST 123\n"
+                      "123.456.789 321431\n"
+                      "879.423.789 214354\n"
+                      "432.456.890 408321\n";
+
+    printf("Sending:\n---\n%s\n---\n", response);
+
+    int bytes_sent = sendto(server_fd, response, sizeof(response), 0,
+                            (struct sockaddr *)&client_addr, client_addr_len);
+    if (bytes_sent == -1) {
+      perror("sendto");
+      exit(1);
+    }
+
+    printf("Sent %d bytes to %s:%d\n", bytes_sent,
+           inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+
+    scanf("%d", &code);
   }
-
-  printf("Received %d bytes from %s:%d\n~>\t`%s`\n", bytes_received,
-         inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), buffer);
-
-  // Send response to the client
-  char response[] = "NODESLIST 123\n"
-                    "123.456.789 321431\n"
-                    "879.423.789 214354\n"
-                    "432.456.890 408321\n";
-
-  printf("Sending:\n---\n%s\n---\n", response);
-
-  int bytes_sent = sendto(server_fd, response, sizeof(response), 0,
-                          (struct sockaddr *)&client_addr, client_addr_len);
-  if (bytes_sent == -1) {
-    perror("sendto");
-    exit(1);
-  }
-
-  printf("Sent %d bytes to %s:%d\n", bytes_sent,
-         inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-
-  int code;
-loop:
-  scanf("%d", &code);
-  if (code != 1)
-    goto loop;
 
   close(server_fd);
   return 0;
