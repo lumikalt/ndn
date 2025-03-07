@@ -40,24 +40,21 @@ NodeList *ndn_nodes(Node *node, u16 net) {
                     &s->addr->ai_addrlen)) <= 0)
     errored("ERR: No response from the server", node);
 
-  printf("OK: Response (%zu): %s\n", n, response);
-
   if (strncmp(response, ok, 14) != 0)
     errored("ERR: Server response did not match the spec", node);
 
   char *string = response + 14;
 
-  printf("List: %s\n", string);
-
   printf("OK: Parsing nodes\n");
 
   /* Parse the string */
 
-  usize len = strlen(string);
-
-  for (usize i = 0; i < str_char_count(string, '\n'); i++) {
-    char *ip = strtok(string, " ");
-    char *tcp = strtok(NULL, " ");
+  usize newlines = str_char_count(string, '\n');
+  for (usize i = 0; i < newlines; i++) {
+    // Every line is in the format IP TCP\n
+    char ip[100], tcp[6];
+    sscanf(string, "%s %s\n", ip, tcp);
+    string += strlen(ip) + strlen(tcp) + 2;
 
     if (nodes->size == nodes->capacity) {
       nodes->capacity *= 2;
@@ -72,6 +69,8 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
     nodes->size++;
   }
+
+  free(response);
 
   return nodes;
 }
