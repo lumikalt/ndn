@@ -88,6 +88,8 @@ void ndn_inputs(Node *node) {
     }
   }
 
+  // TODO: Leave the network and send all internals the leave message
+
   clean_node(node);
   exit(0);
 }
