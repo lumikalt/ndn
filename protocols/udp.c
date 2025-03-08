@@ -10,10 +10,7 @@
 NodeList *ndn_nodes(Node *node, u16 net) {
   Server *s = node->server;
   NodeList *nodes = malloc(sizeof(NodeList));
-  nodes->ip = malloc(10 * sizeof(char *));
-  nodes->tcp = malloc(10 * sizeof(char *));
   nodes->size = 0;
-  nodes->capacity = 10;
 
   ssize_t n;
   char buffer[256];
@@ -59,17 +56,15 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   /* Parse the string */
 
   usize newlines = str_char_count(string, '\n');
+
+  nodes->ip = malloc(newlines * sizeof(char *));
+  nodes->tcp = malloc(newlines * sizeof(char *));
+
   for (usize i = 0; i < newlines; i++) {
     // Every line is in the format IP TCP\n
     char ip[100], tcp[6];
     sscanf(string, "%s %s\n", ip, tcp);
     string += strlen(ip) + strlen(tcp) + 2;
-
-    if (nodes->size == nodes->capacity) {
-      nodes->capacity *= 2;
-      nodes->ip = realloc(nodes->ip, nodes->capacity * sizeof(char *));
-      nodes->tcp = realloc(nodes->tcp, nodes->capacity * sizeof(char *));
-    }
 
     nodes->ip[nodes->size] = malloc(strlen(ip) + 1);
     nodes->tcp[nodes->size] = malloc(strlen(tcp) + 1);

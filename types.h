@@ -1,6 +1,7 @@
 #pragma once
 
 #include "list.h"
+
 #include <netdb.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -37,9 +38,7 @@ typedef struct {
   char **ip;
   char **tcp;
 
-  // Ugly
   usize size;
-  usize capacity;
 } NodeList;
 
 // Object type
