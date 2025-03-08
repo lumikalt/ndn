@@ -66,13 +66,7 @@ void ndn_inputs(Node *node) {
               perror("write");
             }
 
-            if (!memcmp(buffer, "x", 1) || !memcmp(buffer, "exit", 4)) {
-              write(1, "Terminating\n", 12);
-              clean_node(node);
-              exit(0);
-            }
-
-            else if (!memcmp(buffer, "ENTRY", 5)) {
+            if (!memcmp(buffer, "ENTRY", 5)) {
               char ip[16], tcp[6];
               if (sscanf(buffer, "ENTRY %15s %5s", ip, tcp) == 2) {
                 ndn_entry(node, ip, tcp);
@@ -105,6 +99,7 @@ void *user_input(void *arg) {
   do {
     printf(YELLOW "> ");
     fgets(input, 128, stdin);
+    printf(RESET);
 
     input[strcspn(input, "\n")] = '\0';
 
@@ -187,7 +182,6 @@ void *user_input(void *arg) {
     if ((sscanf(input, "delete %100s%n", name, &pos) == 1 &&
          input[pos] == '\0') ||
         (sscanf(input, "dl %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
-
       if (!is_valid_name(name)) {
         fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
         return NULL;
@@ -213,5 +207,8 @@ void *user_input(void *arg) {
                 "Type '(h)elp' for the list of commands\n");
   } while (node->exit == false);
 
+  printf(OK "Terminating\n");
+  clean_node(node);
+  exit(0);
   return NULL;
 }
