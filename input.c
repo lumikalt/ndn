@@ -27,7 +27,7 @@ void user_in(Node *node) {
 
     counter = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
     if (counter == -1) {
-      perror("select fail");
+      perror(RED "ERR" RESET "\tselect fail");
       exit(1);
     }
 
@@ -40,12 +40,13 @@ void user_in(Node *node) {
           new_fd = accept(listener_fd, &addr, &addrlen);
 
           if (new_fd == -1) {
-            perror("accept");
+            perror(RED "ERR" RESET "\taccept");
           } else {
             FD_SET(new_fd, &master_fds);
             if (new_fd > max_fd)
               max_fd = new_fd;
-            printf("New connection established: FD %d\n", new_fd);
+            printf(GREEN "OK" RESET "\tNew connection established: FD %d\n",
+                   new_fd);
           }
 
         } else {
@@ -54,21 +55,22 @@ void user_in(Node *node) {
           if (n <= 0) {
 
             if (n == 0) {
-              printf("Client on FD %d disconnected.\n", i);
+              printf(CYAN "NOTICE" RESET "\tClient on FD %d disconnected.\n",
+                     i);
             } else {
-              perror("read");
+              perror(RED "ERR" RESET "\tread");
             }
             close(i);
             FD_CLR(i, &master_fds);
 
           } else {
-            printf("Message from FD %d: %s\n", i, buffer);
+            printf(CYAN "NOTICE" RESET "\tMessage from FD %d: %s\n", i, buffer);
             if (write(i, buffer, n) == -1) {
-              perror("write");
+              perror(RED "ERR" RESET "\twrite");
             }
 
             if (!memcmp(buffer, "x", 1) || !memcmp(buffer, "exit", 4)) {
-              write(1, "Terminating\n", 12);
+              write(1, CYAN "NOTICE" RESET "\tTerminating\n", 12);
               clean_node(node);
               exit(0);
             }
@@ -79,6 +81,8 @@ void user_in(Node *node) {
       }
     }
   }
+
+  close(listener_fd);
 }
 
 void process_input_commands(Node *node, char *input) {
@@ -91,7 +95,8 @@ void process_input_commands(Node *node, char *input) {
     NodeList *nodes = ndn_nodes(node, 123);
 
     for (usize i = 0; i < nodes->size; i++) {
-      printf("(%zu) %s:%s\n", i, nodes->ip[i], nodes->tcp[i]);
+      printf(CYAN "NOTICE" RESET "\t(%zu) %s:%s\n", i, nodes->ip[i],
+             nodes->tcp[i]);
       free(nodes->ip[i]);
       free(nodes->tcp[i]);
     }
@@ -109,12 +114,12 @@ void process_input_commands(Node *node, char *input) {
       (sscanf(input, "j %3s%n", net, &pos) == 1 && input[pos] == '\0')) {
 
     if (!is_valid_net(net)) {
-      printf("Wrong input, it must be 3 digits.\n");
+      fprintf(stderr, RED "ERR" RESET "\tWrong input, it must be 3 digits.\n");
       return;
     }
 
     ndn_join(node, atoi(net));
-    printf("Joining network %s...\n", net);
+    printf(CYAN "NOTICE" RESET "\tJoining network %s...\n", net);
     return;
   }
   //----------
@@ -126,18 +131,20 @@ void process_input_commands(Node *node, char *input) {
        input[pos] == '\0')) {
 
     if (!is_valid_ip(ip)) {
-      printf("Invalid IP address\n");
+      fprintf(stderr, RED "ERR" RESET "\tInvalid IP address\n");
     } else if (!is_valid_port(port)) {
-      printf("Invalid port number\n");
+      fprintf(stderr, RED "ERR" RESET "\tInvalid port number\n");
     } else {
-      printf("Direct joining via %s:%s\n", ip, port);
+      printf(CYAN "NOTICE" RESET "\tDirect joining via %s:%s\n", ip, port);
 
       if (strcmp(ip, "0.0.0.0") == 0) {
-        printf("Created new network\n");
+        printf(GREEN "OK" RESET "\tCreated new network\n");
+
+        ndn_register(node, 0);
       }
     }
 
-    ndn_direct_join(node, atoi(net), ip, port);
+    ndn_direct_join(node, ip, port);
 
     return;
   }
@@ -150,13 +157,14 @@ void process_input_commands(Node *node, char *input) {
       (sscanf(input, "c %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
 
     if (!is_valid_name(name)) {
-      printf("Invalid name (alphanumeric, 1-100 chars)\n");
+      fprintf(stderr,
+              RED "ERR" RESET "\tInvalid name (alphanumeric, 1-100 chars)\n");
       return;
     }
 
     ndn_create(node, name);
 
-    printf("Created object '%s'\n", name);
+    printf(GREEN "OK" RESET "\tCreated object `%s`\n", name);
     return;
   }
   //----------
@@ -167,13 +175,14 @@ void process_input_commands(Node *node, char *input) {
       (sscanf(input, "dl %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
 
     if (!is_valid_name(name)) {
-      printf("Invalid name\n");
+      fprintf(stderr,
+              RED "ERR" RESET "\tInvalid name (alphanumeric, 1-100 chars)\n");
       return;
     }
 
     ndn_delete(node, name);
 
-    printf("Deleted object '%s'\n", name);
+    printf(GREEN "OK" RESET "\tDeleted object `%s`\n", name);
     return;
   }
   //----------
@@ -186,6 +195,8 @@ void process_input_commands(Node *node, char *input) {
   //----------
 
   // if the command does not exist
-  printf("That command does not exist. Please type '(h)elp' for the list of "
-         "commands\n");
+  fprintf(
+      stderr, RED
+      "ERR" RESET
+      "\tCcommand does not exist, type '(h)elp' for the list of commands\n");
 }

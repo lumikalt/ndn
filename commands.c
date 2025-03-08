@@ -107,7 +107,8 @@ void ndn_join(Node *node, u16 net) {
   }
 
   if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
-    fprintf(stderr, RED "ERR" CLEAR "\tSAFE contains joining node's own details\n");
+    fprintf(stderr,
+            RED "ERR" CLEAR "\tSAFE contains joining node's own details\n");
     return;
   }
 
@@ -118,13 +119,14 @@ void ndn_join(Node *node, u16 net) {
   printf(GREEN "OK" RESET "\tJoined network %03d\n", net);
 }
 
-void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
+void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   int external_fd, errcode;
   ssize_t n;
   struct addrinfo hints, *res;
   char buffer[128];
 
-  printf(CYAN "NOTICE" RESET "\tDirectly joining network %d\n", net);
+  printf(CYAN "NOTICE" RESET "\tDirectly joining network via %s:%s\n",
+         connectIP, connectTCP);
   node->external->ip = connectIP;
   node->external->tcp = connectTCP;
 
@@ -177,12 +179,10 @@ void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
 
   ndn_safe(node, ip, tcp);
 
-  ndn_register(node, net);
-
   // off you go buddy
   printf(GREEN "OK" RESET
-               "\tDirectly joined network %d, linked to external %s:%s\n",
-         net, connectIP, connectTCP);
+               "\tDirectly joined network of external %s:%s\n",
+         connectIP, connectTCP);
 }
 
 void ndn_create(Node *node, const char *name) {

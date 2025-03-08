@@ -8,7 +8,7 @@ void ndn_help();
 
 void ndn_join(Node *, u16 net);
 
-void ndn_direct_join(Node *, u16 net, char *connectIP, char *connectTCP);
+void ndn_direct_join(Node *, char *connectIP, char *connectTCP);
 
 void ndn_create(Node *, const char *name);
 
