@@ -28,7 +28,7 @@ void ndn_inputs(Node *node) {
 
     counter = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
     if (counter == -1) {
-      perror("select fail");
+      perror(ERR "select fail");
       exit(1);
     }
 
@@ -40,12 +40,12 @@ void ndn_inputs(Node *node) {
           new_fd = accept(listener_fd, &addr, &addrlen);
 
           if (new_fd == -1) {
-            perror("accept");
+            perror(ERR "accept");
           } else {
             FD_SET(new_fd, &master_fds);
             if (new_fd > max_fd)
               max_fd = new_fd;
-            printf("New connection established: FD %d\n", new_fd);
+            printf(OK "New connection established: FD %d\n", new_fd);
           }
 
         } else {
@@ -53,16 +53,16 @@ void ndn_inputs(Node *node) {
 
           if (n <= 0) {
             if (n == 0) {
-              printf("Client on FD %d disconnected.\n", i);
+              printf(NOTICE "Client on FD %d disconnected.\n", i);
             } else {
-              perror("read");
+              perror(ERR "read");
             }
             close(i);
             FD_CLR(i, &master_fds);
           } else {
-            printf("Message from FD %d: %s\n", i, buffer);
+            printf(NOTICE "Message from FD %d: %s\n", i, buffer);
             if (write(i, buffer, n) == -1) {
-              perror("write");
+              perror(ERR "write");
             }
 
             if (!memcmp(buffer, "ENTRY", 5)) {
