@@ -17,8 +17,8 @@
 #define RESET "\033[0m"
 #define CLEAR "\033[H\033[J"
 
-#define ERR RED "ERR\t" RESET
-#define OK GREEN "OK\t" RESET
+#define ERR RED "ERRORED\t" RESET
+#define OK GREEN "SUCCESS\t" RESET
 #define NOTICE CYAN "NOTICE\t" RESET
 
 usize str_char_count(const char *s, char c);

@@ -19,17 +19,32 @@ void ndn_inputs(Node *node) {
   char buffer[128];
   fd_set master_fds, read_fds;
 
+  // Create a pipe for signaling the exit condition
+  int pipe_fds[2];
+  if (pipe(pipe_fds) == -1) {
+    perror(ERR "pipe");
+    exit(1);
+  }
+  node->pipe_read_fd = pipe_fds[0];
+  node->pipe_write_fd = pipe_fds[1];
+
   FD_ZERO(&master_fds);
   FD_SET(listener_fd, &master_fds);
-  max_fd = listener_fd;
+  FD_SET(node->pipe_read_fd, &master_fds);
+  max_fd = listener_fd > node->pipe_read_fd ? listener_fd : node->pipe_read_fd;
 
-  while (node->exit == false) {
+  while (true) {
     read_fds = master_fds;
 
     counter = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
     if (counter == -1) {
       perror(ERR "select fail");
-      exit(1);
+      break;
+    }
+
+    if (FD_ISSET(node->pipe_read_fd, &read_fds)) {
+      // Exit signal received
+      break;
     }
 
     memset(buffer, 0, 128);
@@ -82,16 +97,21 @@ void ndn_inputs(Node *node) {
                 fprintf(stderr, ERR "Invalid SAFE message format\n");
               }
             }
+
+            if (node->exit == true) {
+              break;
+            }
           }
         }
       }
     }
   }
 
-  // TODO: Leave the network and send all internals the leave message
+  // Leave the network and send all internals the leave message
+  // TODO: Implement leave message logic here
 
-  // clean_node(node);
-  // exit(0);
+  clean_node(node);
+  exit(0);
 }
 
 void *user_input(void *arg) {
@@ -201,7 +221,12 @@ void *user_input(void *arg) {
     //---exit---
     if ((strcmp(input, "exit") == 0) || (strcmp(input, "x") == 0)) {
       node->exit = true;
-      break;
+      printf(OK "Terminating\n");
+
+      // Write to the pipe to signal the exit condition
+      write(node->pipe_write_fd, "exit", 4);
+
+      return NULL;
     }
     //----------
 
@@ -216,10 +241,5 @@ void *user_input(void *arg) {
     fprintf(stderr,
             ERR "Command does not exist or wrong arguments passed\n" NOTICE
                 "Type '(h)elp' for the list of commands\n");
-  } while (node->exit == false);
-
-  printf(OK "Terminating\n");
-  clean_node(node);
-  exit(0);
-  return NULL;
+  } while (true);
 }

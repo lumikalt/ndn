@@ -79,7 +79,6 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   // create TCP listener
 
   int listener_fd;
-  char buffer[128];
 
   memset(&hints, 0, sizeof hints);
 
@@ -122,6 +121,12 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   pthread_t input_thread;
   if (pthread_create(&input_thread, NULL, user_input, (void *)node) != 0) {
     perror(ERR "Failed to create input thread");
+    exit(1);
+  }
+
+  // Detach the thread to avoid memory leaks
+  if (pthread_detach(input_thread) != 0) {
+    perror(ERR "Failed to detach input thread");
     exit(1);
   }
 
@@ -182,7 +187,11 @@ void clean_node(Node *node) {
   close(node->listener_fd);
 
   // clean the thread
-  pthread_cancel(node->thread);
+  if (node->exit == false)
+    pthread_cancel(node->thread);
+
+  close(node->pipe_read_fd);
+  close(node->pipe_write_fd);
 
   free(node);
 }

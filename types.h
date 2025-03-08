@@ -68,4 +68,7 @@ typedef struct Node {
   // IO handling thread
   pthread_t thread;
   bool exit;
+  // exit pipe
+  int pipe_read_fd;
+  int pipe_write_fd;
 } Node;

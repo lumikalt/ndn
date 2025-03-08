@@ -99,7 +99,7 @@ void ndn_join(Node *node, u16 net) {
   }
 
   // check "SAFE IP TCP\n"
-  char *ip, *tcp;
+  char *ip = NULL, *tcp = NULL;
   if (sscanf(buffer, "SAFE %s %s\n", ip, tcp) != 2) {
     fprintf(stderr, ERR "Failed to parse response\n");
     return;
@@ -167,7 +167,7 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   }
 
   // check "SAFE IP TCP\n"
-  char *ip, *tcp;
+  char *ip = NULL, *tcp = NULL;
   if (sscanf(buffer, "SAFE %s %s\n", ip, tcp) != 2) {
     fprintf(stderr, ERR "Failed to parse response\n");
     return;
