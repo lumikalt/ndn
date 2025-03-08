@@ -12,16 +12,26 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
   struct addrinfo hints, *res;
   char buffer[128];
 
+  if (strcmp(node->external->ip, ip) == 0 &&
+      strcmp(node->external->tcp, tcp) == 0) {
+    fprintf(stderr, ERR "Entry contains joining node's own details\n");
+    return;
+  }
+  if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
+    fprintf(stderr, ERR "Entry contains joining node's own details\n");
+    return;
+  }
+
   node->safeguard->ip = ip;
   node->safeguard->tcp = tcp;
 
-  printf(CYAN "NOTICE" CLEAR "\tGot external's (%s:%s) external (%s:%s)\n",
-         node->external->ip, node->external->tcp, ip, tcp);
+  printf(NOTICE "Got external's (%s:%s) external (%s:%s)\n", node->external->ip,
+         node->external->tcp, ip, tcp);
 
-  printf(CYAN "NOTICE" CLEAR "\tConnecting to safeguard\n");
+  printf(NOTICE "Connecting to safeguard\n");
 
   if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-    fprintf(stderr, RED "ERR" CLEAR "\tFailed to create the socket\n");
+    fprintf(stderr, ERR "Failed to create the socket\n");
     return;
   }
 
@@ -30,13 +40,13 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
   hints.ai_socktype = SOCK_STREAM;
 
   if ((errcode = getaddrinfo(ip, tcp, &hints, &res)) != 0) {
-    fprintf(stderr, RED "ERR" CLEAR "\tFailed to get the address info (%s)\n",
+    fprintf(stderr, ERR "Failed to get the address info (%s)\n",
             gai_strerror(errcode));
     return;
   }
 
   if ((n = connect(fd, res->ai_addr, res->ai_addrlen)) == -1) {
-    fprintf(stderr, RED "ERR" CLEAR "\tFailed to connect to the safeguard\n");
+    fprintf(stderr, ERR "Failed to connect to the safeguard\n");
     return;
   }
 
@@ -52,17 +62,17 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
   char buffer[128];
 
   if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
-    fprintf(stderr, RED "ERR" CLEAR "\tEntry contains joining node's own details\n");
+    fprintf(stderr, ERR "Entry contains joining node's own details\n");
     return;
   }
 
   node->internal[node->internal_size]->ip = ip;
   node->internal[node->internal_size]->tcp = tcp;
 
-  printf(CYAN "NOTICE" CLEAR "\tConnecting to new internal %s:%s\n", ip, tcp);
+  printf(NOTICE "Connecting to new internal %s:%s\n", ip, tcp);
 
   if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-    fprintf(stderr, RED "ERR" CLEAR "\tFailed to create the socket\n");
+    fprintf(stderr, ERR "Failed to create the socket\n");
     return;
   }
 
@@ -71,19 +81,17 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
   hints.ai_socktype = SOCK_STREAM;
 
   if ((errcode = getaddrinfo(ip, tcp, &hints, &res)) != 0) {
-    fprintf(stderr, RED "ERR" CLEAR "\tFailed to get the address info\n");
+    fprintf(stderr, ERR "Failed to get the address info\n");
     return;
   }
 
   if ((n = connect(fd, res->ai_addr, res->ai_addrlen)) == -1) {
-    fprintf(stderr,
-            RED "ERR" CLEAR "\tFailed to connect to the new internal\n");
+    fprintf(stderr, ERR "Failed to connect to the new internal\n");
     return;
   }
 
   node->internal[node->internal_size]->fd = fd;
   node->internal[node->internal_size]->addr = res;
-
 
   if (node->external->fd == -1) { // No external yet
     node->external->fd = fd;
@@ -92,7 +100,7 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
     node->external->tcp = tcp;
   }
 
-  printf(GREEN "OK" CLEAR "\tConnected to new internal %s:%s\n", ip, tcp);
+  printf(OK "Connected to new internal %s:%s\n", ip, tcp);
 
   node->internal_size++;
 }
