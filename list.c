@@ -11,7 +11,7 @@
 ObjectList *list_create() {
   ObjectList *list = malloc(sizeof(ObjectList));
   if (!list) {
-    perror(RED "ERR" RESET "\tmalloc");
+    perror(ERR "malloc");
     exit(1);
   }
   list->self = NULL;
@@ -33,7 +33,7 @@ void list_add(ObjectList *list, Object object, char *ip, char *tcp) {
 
   ObjectList *new_node = malloc(sizeof(ObjectList));
   if (!new_node) {
-    perror(RED "ERR" RESET "\tmalloc");
+    perror(ERR "malloc");
     exit(1);
   }
   new_node->self = object;
@@ -99,7 +99,7 @@ void list_destroy(ObjectList *list) {
 void list_print(ObjectList *list) {
   ObjectList *current = list;
   while (current != NULL) {
-    printf(RESET "\t> `%s`\n", current->self);
+    printf(NOTICE "> `%s`\n", current->self);
     current = current->next;
   }
 }
@@ -107,7 +107,7 @@ void list_print(ObjectList *list) {
 void list_print_interests(ObjectList *list) {
   ObjectList *current = list;
   while (current != NULL) {
-    printf(RESET "\t> `%s` (%s:%s)\n", current->self, current->ip, current->tcp);
+    printf(NOTICE "> `%s` (%s:%s)\n", current->self, current->ip, current->tcp);
     current = current->next;
   }
 }
