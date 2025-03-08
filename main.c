@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
 
   Node *node = init_node(cache, IP, TCP, regIP, regUDP);
 
-  user_in(node);
+  ndn_inputs(node);
 
   return 0;
 }
