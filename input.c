@@ -90,8 +90,8 @@ void ndn_inputs(Node *node) {
 
   // TODO: Leave the network and send all internals the leave message
 
-  clean_node(node);
-  exit(0);
+  // clean_node(node);
+  // exit(0);
 }
 
 void *user_input(void *arg) {
@@ -219,5 +219,7 @@ void *user_input(void *arg) {
   } while (node->exit == false);
 
   printf(OK "Terminating\n");
+  clean_node(node);
+  exit(0);
   return NULL;
 }

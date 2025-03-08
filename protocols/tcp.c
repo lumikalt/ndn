@@ -10,7 +10,6 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
   int fd, errcode;
   ssize_t n;
   struct addrinfo hints, *res;
-  char buffer[128];
 
   if (strcmp(node->external->ip, ip) == 0 &&
       strcmp(node->external->tcp, tcp) == 0) {
@@ -59,7 +58,6 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
   int fd, errcode;
   ssize_t n;
   struct addrinfo hints, *res;
-  char buffer[128];
 
   if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
     fprintf(stderr, ERR "Entry contains joining node's own details\n");

@@ -78,11 +78,8 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
 
   // create TCP listener
 
-  int listener_fd, new_fd, max_fd, counter;
-  struct sockaddr addr;
-  socklen_t addrlen;
+  int listener_fd;
   char buffer[128];
-  fd_set master_fds, read_fds;
 
   memset(&hints, 0, sizeof hints);
 
