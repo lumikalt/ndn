@@ -23,7 +23,7 @@ void ndn_inputs(Node *node) {
   FD_SET(listener_fd, &master_fds);
   max_fd = listener_fd;
 
-  while (1) {
+  while (node->exit == false) {
     read_fds = master_fds;
 
     counter = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
@@ -36,7 +36,6 @@ void ndn_inputs(Node *node) {
     for (int i = 0; i <= max_fd; i++) {
       if (FD_ISSET(i, &read_fds)) {
         if (i == listener_fd) {
-
           addrlen = sizeof addr;
           new_fd = accept(listener_fd, &addr, &addrlen);
 
@@ -88,6 +87,9 @@ void ndn_inputs(Node *node) {
       }
     }
   }
+
+  clean_node(node);
+  exit(0);
 }
 
 void *user_input(void *arg) {
@@ -195,9 +197,9 @@ void *user_input(void *arg) {
     //----------
 
     //---exit---
-    if ((strcmp(input, "exit") == 0) || (strcmp(input, "e") == 0)) {
+    if ((strcmp(input, "exit") == 0) || (strcmp(input, "x") == 0)) {
       node->exit = true;
-      continue;
+      break;
     }
     //----------
 
@@ -215,7 +217,5 @@ void *user_input(void *arg) {
   } while (node->exit == false);
 
   printf(OK "Terminating\n");
-  clean_node(node);
-  exit(0);
   return NULL;
 }

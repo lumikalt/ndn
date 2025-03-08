@@ -184,6 +184,9 @@ void clean_node(Node *node) {
 
   close(node->listener_fd);
 
+  // clean the thread
+  pthread_cancel(node->thread);
+
   free(node);
 }
 
