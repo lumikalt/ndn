@@ -72,7 +72,7 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
 
-  printf(GREEN "NOTICE" CLEAR "\tConnected to external %s:%s\n", node_ip,
+  printf(CYAN "NOTICE" CLEAR "\tConnected to external %s:%s\n", node_ip,
          node_tcp);
 
   node->external->ip = node_ip;
@@ -80,7 +80,37 @@ void ndn_join(Node *node, u16 net) {
   node->external->addr = res;
   node->external->fd = external_fd;
 
+  // ENTRY
+
+  char buffer[128];
+  ssize_t n;
+
+  snprintf(buffer, sizeof(buffer), "ENTRY %s %s\n", node->ip, node->tcp);
+
+  if ((n = write(external_fd, buffer, strlen(buffer))) < 0) {
+    perror(RED "ERR" CLEAR "\twrite");
+    return;
+  }
+
+  // wait for the SAFE response
+  memset(buffer, 0, sizeof(buffer));
+  if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) < 0) {
+    perror(RED "ERR" CLEAR "\tread");
+    return;
+  }
+
+  // check "SAFE IP TCP\n"
+  char *ip, *tcp;
+  if (sscanf(buffer, "SAFE %s %s\n", ip, tcp) != 2) {
+    fprintf(stderr, RED "ERR" CLEAR "\tFailed to parse response\n");
+    return;
+  }
+
+  ndn_safe(node, ip, tcp);
+
   ndn_register(node, net);
+
+  printf(GREEN "OK" CLEAR "\tJoined network %03d\n", net);
 }
 
 void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
@@ -96,7 +126,7 @@ void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
   // Create and connect the TCP socket to connectIP:connectTCP
   if ((external_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     perror(RED "ERR" CLEAR "\tsocket");
-    exit(1);
+    return;
   }
 
   memset(&hints, 0, sizeof hints);
@@ -106,40 +136,43 @@ void ndn_direct_join(Node *node, u16 net, char *connectIP, char *connectTCP) {
   if ((errcode = getaddrinfo(connectIP, connectTCP, &hints, &res)) != 0) {
     fprintf(stderr, RED "ERR" CLEAR "\tgetaddrinfo: %s\n",
             gai_strerror(errcode));
-    exit(1);
+    return;
   }
 
   if ((n = connect(external_fd, res->ai_addr, res->ai_addrlen)) == -1) {
     perror(RED "ERR" CLEAR "\tconnect");
-    exit(1);
+    return;
   }
-  freeaddrinfo(res);
+
+  node->external->fd = external_fd;
+  node->external->addr = res;
 
   // ENTRY
+
   snprintf(buffer, sizeof(buffer), "ENTRY %s %s\n", node->ip, node->tcp);
-  n = write(external_fd, buffer, strlen(buffer));
-  if (n < 0) {
+
+  if ((n = write(external_fd, buffer, strlen(buffer))) < 0) {
     perror(RED "ERR" CLEAR "\twrite");
-    exit(1);
+    return;
   }
 
   // wait for the SAFE response
   memset(buffer, 0, sizeof(buffer));
   if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) < 0) {
     perror(RED "ERR" CLEAR "\tread");
-    exit(1);
+    return;
   }
 
   // check "SAFE IP TCP\n"
-  char expected[128];
-  snprintf(expected, sizeof(expected), "SAFE %s %s\n", node->external->ip,
-           node->external->tcp);
-  if (strncmp(buffer, expected, strlen(expected)) != 0) {
-    fprintf(stderr, RED "ERR" CLEAR "\tUnexpected response: %s\n", buffer);
-    exit(1);
+  char *ip, *tcp;
+  if (sscanf(buffer, "SAFE %s %s\n", ip, tcp) != 2) {
+    fprintf(stderr, RED "ERR" CLEAR "\tFailed to parse response\n");
+    return;
   }
 
-  ndn_safe(node, connectIP, connectTCP);
+  ndn_safe(node, ip, tcp);
+
+  ndn_register(node, net);
 
   // off you go buddy
   printf(GREEN "OK" CLEAR

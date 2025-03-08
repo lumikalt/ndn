@@ -112,10 +112,9 @@ void ndn_register(Node *node, u16 net) {
     return;
   } else if (strncmp(response, ok, 6) != 0) {
     fprintf(stderr, RED "ERR" CLEAR "\tServer refused the registration\n");
-  } else {
-    printf(GREEN "OK" CLEAR "\tSuccessfully registered in the network %d\n",
-           net);
   }
+
+  printf(GREEN "OK" CLEAR "\tSuccessfully registered in the network %d\n", net);
 }
 
 /// Unregister the node from the network, and check if the server accepted the
@@ -129,7 +128,8 @@ void ndn_unregister(Node *node, u16 net) {
 
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, RED "ERR" CLEAR "\tFailed to send unregistration request\n");
+    fprintf(stderr,
+            RED "ERR" CLEAR "\tFailed to send unregistration request\n");
     return;
   }
 
