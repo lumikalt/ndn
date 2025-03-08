@@ -106,6 +106,11 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
 
+  if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
+    fprintf(stderr, RED "ERR" CLEAR "\tSAFE contains joining node's own details\n");
+    return;
+  }
+
   ndn_safe(node, ip, tcp);
 
   ndn_register(node, net);
