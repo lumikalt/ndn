@@ -64,4 +64,8 @@ typedef struct Node {
 
   // TCP listener
   int listener_fd;
+
+  // IO handling thread
+  pthread_t thread;
+  bool exit;
 } Node;

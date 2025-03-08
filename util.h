@@ -35,3 +35,5 @@ int is_valid_ip(char *ip);
 int is_valid_port(char *port);
 
 int is_valid_name(char *name);
+
+void clean_nodelist(NodeList *nodes);

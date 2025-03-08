@@ -11,7 +11,8 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-void user_in(int listener_fd, Node *node) {
+void ndn_inputs(Node *node) {
+  int listener_fd = node->listener_fd;
   int new_fd, max_fd, counter;
   struct sockaddr addr;
   socklen_t addrlen;
@@ -52,7 +53,6 @@ void user_in(int listener_fd, Node *node) {
           int n = read(i, buffer, 128);
 
           if (n <= 0) {
-
             if (n == 0) {
               printf("Client on FD %d disconnected.\n", i);
             } else {
@@ -60,7 +60,6 @@ void user_in(int listener_fd, Node *node) {
             }
             close(i);
             FD_CLR(i, &master_fds);
-
           } else {
             printf("Message from FD %d: %s\n", i, buffer);
             if (write(i, buffer, n) == -1) {
@@ -78,143 +77,141 @@ void user_in(int listener_fd, Node *node) {
               if (sscanf(buffer, "ENTRY %15s %5s", ip, tcp) == 2) {
                 ndn_entry(node, ip, tcp);
               } else {
-                printf("Invalid ENTRY message format.\n");
+                fprintf(stderr, ERR "Invalid ENTRY message format\n");
               }
             }
-
 
             else if (!memcmp(buffer, "SAFE", 4)) {
               char ip[16], tcp[6];
               if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) == 2) {
                 ndn_safe(node, ip, tcp);
               } else {
-                printf("Invalid SAFE message format.\n");
+                fprintf(stderr, ERR "Invalid SAFE message format\n");
               }
-            }
-
-            else {
-              process_input_commands(node, buffer);
             }
           }
         }
       }
     }
   }
-
-  close(listener_fd);
 }
 
-
-void process_input_commands(Node *node, char *input) {
+void *user_input(void *arg) {
+  Node *node = (Node *)arg;
+  char input[128];
   char net[4], ip[16], port[6], name[101];
   int pos;
-  input[strcspn(input, "\n")] = '\0';
 
-  //---nodes---
-  // check for nodes net
-  if ((sscanf(input, "nodes %3s%n", net, &pos) == 1 && input[pos] == '\0') ||
-      (sscanf(input, "n %3s%n", net, &pos) == 1 && input[pos] == '\0')) {
-    NodeList *nodes = ndn_nodes(node, atoi(net));
+  do {
+    printf(YELLOW "> ");
+    fgets(input, 128, stdin);
 
-    for (usize i = 0; i < nodes->size; i++) {
-      printf(NOTICE "(%zu) %s:%s\n", i, nodes->ip[i], nodes->tcp[i]);
-      free(nodes->ip[i]);
-      free(nodes->tcp[i]);
-    }
+    input[strcspn(input, "\n")] = '\0';
 
-    free(nodes->ip);
-    free(nodes->tcp);
-    free(nodes);
+    //---nodes---
+    // check for nodes net
+    if ((sscanf(input, "nodes %3s%n", net, &pos) == 1 && input[pos] == '\0') ||
+        (sscanf(input, "n %3s%n", net, &pos) == 1 && input[pos] == '\0')) {
+      NodeList *nodes = ndn_nodes(node, atoi(net));
 
-    return;
-  }
-  //----------
-
-  //---join---
-  if ((sscanf(input, "join %3s%n", net, &pos) == 1 && input[pos] == '\0') ||
-      (sscanf(input, "j %3s%n", net, &pos) == 1 && input[pos] == '\0')) {
-
-    if (!is_valid_net(net)) {
-      fprintf(stderr, ERR "Wrong input, it must be 3 digits.\n");
-      return;
-    }
-
-    ndn_join(node, atoi(net));
-    printf(NOTICE "Joining network %s...\n", net);
-    return;
-  }
-  //----------
-
-  //---direct join---
-  if ((sscanf(input, "direct join %15s %5s%n", ip, port, &pos) == 2 &&
-       input[pos] == '\0') ||
-      (sscanf(input, "dj %15s %5s%n", ip, port, &pos) == 2 &&
-       input[pos] == '\0')) {
-
-    if (!is_valid_ip(ip)) {
-      fprintf(stderr, ERR "Invalid IP address\n");
-    } else if (!is_valid_port(port)) {
-      fprintf(stderr, ERR "Invalid port number\n");
-    } else {
-      printf(NOTICE "Direct joining via %s:%s\n", ip, port);
-
-      if (strcmp(ip, "0.0.0.0") == 0) {
-        printf(OK "Created new network\n");
-        return;
+      for (usize i = 0; i < nodes->size; i++) {
+        printf(NOTICE "(%zu) %s:%s\n", i, nodes->ip[i], nodes->tcp[i]);
       }
+
+      clean_nodelist(nodes);
+
+      return NULL;
     }
+    //----------
 
-    ndn_direct_join(node, ip, port);
+    //---join---
+    if ((sscanf(input, "join %3s%n", net, &pos) == 1 && input[pos] == '\0') ||
+        (sscanf(input, "j %3s%n", net, &pos) == 1 && input[pos] == '\0')) {
 
-    printf(OK "Directly joined network of external %s:%s\n", ip, port);
+      if (!is_valid_net(net)) {
+        fprintf(stderr, ERR "Wrong input, it must be 3 digits.\n");
+        return NULL;
+      }
 
-    return;
-  }
-  //----------
-
-  //---create---
-  if ((sscanf(input, "create %100s%n", name, &pos) == 1 &&
-       input[pos] == '\0') ||
-      (sscanf(input, "c %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
-
-    if (!is_valid_name(name)) {
-      fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
-      return;
+      ndn_join(node, atoi(net));
+      printf(NOTICE "Joining network %s...\n", net);
+      return NULL;
     }
+    //----------
 
-    ndn_create(node, name);
+    //---direct join---
+    if ((sscanf(input, "direct join %15s %5s%n", ip, port, &pos) == 2 &&
+         input[pos] == '\0') ||
+        (sscanf(input, "dj %15s %5s%n", ip, port, &pos) == 2 &&
+         input[pos] == '\0')) {
 
-    printf(OK "Created object `%s`\n", name);
-    return;
-  }
-  //----------
+      if (!is_valid_ip(ip)) {
+        fprintf(stderr, ERR "Invalid IP address\n");
+      } else if (!is_valid_port(port)) {
+        fprintf(stderr, ERR "Invalid port number\n");
+      } else {
+        printf(NOTICE "Direct joining via %s:%s\n", ip, port);
 
-  //---delete---
-  if ((sscanf(input, "delete %100s%n", name, &pos) == 1 &&
-       input[pos] == '\0') ||
-      (sscanf(input, "dl %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
+        if (strcmp(ip, "0.0.0.0") == 0) {
+          printf(OK "Created new network\n");
+          return NULL;
+        }
+      }
 
-    if (!is_valid_name(name)) {
-      fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
-      return;
+      ndn_direct_join(node, ip, port);
+
+      printf(OK "Directly joined network of external %s:%s\n", ip, port);
+
+      return NULL;
     }
+    //----------
 
-    ndn_delete(node, name);
+    //---create---
+    if ((sscanf(input, "create %100s%n", name, &pos) == 1 &&
+         input[pos] == '\0') ||
+        (sscanf(input, "c %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
 
-    printf(OK "Deleted object `%s`\n", name);
-    return;
-  }
-  //----------
+      if (!is_valid_name(name)) {
+        fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
+        return NULL;
+      }
 
-  //---help---
-  if ((strcmp(input, "help") == 0) || (strcmp(input, "h") == 0)) {
-    ndn_help();
-    return;
-  }
-  //----------
+      ndn_create(node, name);
 
-  // if the command had the wrong format or does not exist
-  fprintf(stderr,
-          ERR "Command does not exist or wrong arguments passed\n" NOTICE
-              "Type '(h)elp' for the list of commands\n");
+      printf(OK "Created object `%s`\n", name);
+      return NULL;
+    }
+    //----------
+
+    //---delete---
+    if ((sscanf(input, "delete %100s%n", name, &pos) == 1 &&
+         input[pos] == '\0') ||
+        (sscanf(input, "dl %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
+
+      if (!is_valid_name(name)) {
+        fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
+        return NULL;
+      }
+
+      ndn_delete(node, name);
+
+      printf(OK "Deleted object `%s`\n", name);
+      return NULL;
+    }
+    //----------
+
+    //---help---
+    if ((strcmp(input, "help") == 0) || (strcmp(input, "h") == 0)) {
+      ndn_help();
+      continue;
+    }
+    //----------
+
+    // if the command had the wrong format or does not exist
+    fprintf(stderr,
+            ERR "Command does not exist or wrong arguments passed\n" NOTICE
+                "Type '(h)elp' for the list of commands\n");
+  } while (node->exit == false);
+
+  return NULL;
 }

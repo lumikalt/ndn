@@ -1,8 +1,10 @@
 #include "util.h"
+#include "input.h"
 #include "list.h"
 #include "types.h"
 
 #include <netdb.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -106,7 +108,6 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
     exit(1);
   }
 
-  // No longer needed, so we free the structure
   freeaddrinfo(res);
 
   // Start listening for incoming connections
@@ -118,6 +119,17 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   printf(GREEN "OK" RESET "\tTCP server listening on port %s\n", tcp);
 
   node->listener_fd = listener_fd;
+
+  // IO thread
+
+  pthread_t input_thread;
+  if (pthread_create(&input_thread, NULL, user_input, (void *)node) != 0) {
+    perror(ERR "Failed to create input thread");
+    exit(1);
+  }
+
+  node->thread = input_thread;
+  node->exit = false;
 
   return node;
 }
