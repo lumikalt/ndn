@@ -1,3 +1,4 @@
+#include "input.h"
 #include "commands.h"
 #include "protocols/udp.h"
 #include "util.h"
