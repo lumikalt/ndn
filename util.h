@@ -17,6 +17,10 @@
 #define RESET "\033[0m"
 #define CLEAR "\033[H\033[J"
 
+#define ERR RED "ERR\t" RESET
+#define OK GREEN "OK\t" RESET
+#define NOTICE CYAN "NOTICE\t" RESET
+
 usize str_char_count(const char *s, char c);
 
 Node *init_node(usize cache_size, char *node_IP, char *node_TCP, char *regIP,
