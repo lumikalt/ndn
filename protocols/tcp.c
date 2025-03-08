@@ -51,8 +51,13 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
   struct addrinfo hints, *res;
   char buffer[128];
 
-  node->external->ip = ip;
-  node->external->tcp = tcp;
+  if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
+    fprintf(stderr, RED "ERR" CLEAR "\tEntry contains joining node's own details\n");
+    return;
+  }
+
+  node->internal[node->internal_size]->ip = ip;
+  node->internal[node->internal_size]->tcp = tcp;
 
   printf(CYAN "NOTICE" CLEAR "\tConnecting to new internal %s:%s\n", ip, tcp);
 
@@ -76,8 +81,18 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
     return;
   }
 
+  node->internal[node->internal_size]->fd = fd;
+  node->internal[node->internal_size]->addr = res;
+
+
+  if (node->external->fd == -1) { // No external yet
+    node->external->fd = fd;
+    node->external->addr = res;
+    node->external->ip = ip;
+    node->external->tcp = tcp;
+  }
+
   printf(GREEN "OK" CLEAR "\tConnected to new internal %s:%s\n", ip, tcp);
 
-  node->external->fd = fd;
-  node->external->addr = res;
+  node->internal_size++;
 }
