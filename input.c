@@ -110,12 +110,12 @@ void *user_input(void *arg) {
       NodeList *nodes = ndn_nodes(node, atoi(net));
 
       for (usize i = 0; i < nodes->size; i++) {
-        printf(NOTICE "(%zu) %s:%s\n", i, nodes->ip[i], nodes->tcp[i]);
+        printf("\t(%zu) %s:%s\n", i, nodes->ip[i], nodes->tcp[i]);
       }
 
       clean_nodelist(nodes);
 
-      return NULL;
+      continue;
     }
     //----------
 
@@ -125,12 +125,12 @@ void *user_input(void *arg) {
 
       if (!is_valid_net(net)) {
         fprintf(stderr, ERR "Wrong input, it must be 3 digits.\n");
-        return NULL;
+        continue;
       }
 
       ndn_join(node, atoi(net));
       printf(NOTICE "Joining network %s...\n", net);
-      return NULL;
+      continue;
     }
     //----------
 
@@ -149,7 +149,7 @@ void *user_input(void *arg) {
 
         if (strcmp(ip, "0.0.0.0") == 0) {
           printf(OK "Created new network\n");
-          return NULL;
+          continue;
         }
       }
 
@@ -157,7 +157,7 @@ void *user_input(void *arg) {
 
       printf(OK "Directly joined network of external %s:%s\n", ip, port);
 
-      return NULL;
+      continue;
     }
     //----------
 
@@ -168,13 +168,13 @@ void *user_input(void *arg) {
 
       if (!is_valid_name(name)) {
         fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
-        return NULL;
+        continue;
       }
 
       ndn_create(node, name);
 
       printf(OK "Created object `%s`\n", name);
-      return NULL;
+      continue;
     }
     //----------
 
@@ -184,13 +184,20 @@ void *user_input(void *arg) {
         (sscanf(input, "dl %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
       if (!is_valid_name(name)) {
         fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
-        return NULL;
+        continue;
       }
 
       ndn_delete(node, name);
 
       printf(OK "Deleted object `%s`\n", name);
-      return NULL;
+      continue;
+    }
+    //----------
+
+    //---exit---
+    if ((strcmp(input, "exit") == 0) || (strcmp(input, "e") == 0)) {
+      node->exit = true;
+      continue;
     }
     //----------
 
