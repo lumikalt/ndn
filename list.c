@@ -1,13 +1,19 @@
 #include "list.h"
 #include "types.h"
+#include "util.h"
 
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 ObjectList *list_create() {
   ObjectList *list = malloc(sizeof(ObjectList));
+  if (!list) {
+    perror(RED "ERR" RESET "\tmalloc");
+    exit(1);
+  }
   list->self = NULL;
   list->ip = NULL;
   list->tcp = NULL;
@@ -20,22 +26,35 @@ void list_add(ObjectList *list, Object object, char *ip, char *tcp) {
   while (current->next != NULL) {
     current = current->next;
   }
-  current->next = malloc(sizeof(ObjectList));
-  current->next->self = object;
-  current->next->ip = ip;
-  current->next->tcp = tcp;
-  current->next->next = NULL;
+  ObjectList *new_node = malloc(sizeof(ObjectList));
+  if (!new_node) {
+    perror(RED "ERR" RESET "\tmalloc");
+    exit(1);
+  }
+  new_node->self = object;
+  new_node->ip = ip ? strdup(ip) : NULL;
+  new_node->tcp = tcp ? strdup(tcp) : NULL;
+  new_node->next = NULL;
+  current->next = new_node;
 }
 
 void list_remove(ObjectList *list, Object object) {
   ObjectList *current = list;
-  while (current->next != NULL) {
-    if (current->next->self == object) {
-      ObjectList *temp = current->next;
-      current->next = current->next->next;
-      free(temp);
+  ObjectList *prev = NULL;
+
+  while (current != NULL) {
+    if (current->self == object) {
+      if (prev == NULL) {
+        list = current->next;
+      } else {
+        prev->next = current->next;
+      }
+      free(current->ip);
+      free(current->tcp);
+      free(current);
       return;
     }
+    prev = current;
     current = current->next;
   }
 }
@@ -45,33 +64,44 @@ void list_destroy(ObjectList *list) {
   while (current != NULL) {
     ObjectList *temp = current;
     current = current->next;
+    free(temp->ip);
+    free(temp->tcp);
     free(temp);
   }
 }
 
 void list_print(ObjectList *list) {
   ObjectList *current = list;
-  while (current->next != NULL) {
-    printf("\t%s\n", current->next->self);
+  while (current != NULL) {
+    printf(RESET "\t> `%s`\n", current->self);
     current = current->next;
   }
 }
 
 void list_print_interests(ObjectList *list) {
   ObjectList *current = list;
-  while (current->next != NULL) {
-    printf("\t%s %s:%s\n", current->next->self,
-           current->next->ip,
-           current->next->tcp);
+  while (current != NULL) {
+    printf(RESET "\t> `%s` (%s:%s)\n", current->self, current->ip, current->tcp);
     current = current->next;
   }
 }
 
 ObjectList *list_find(ObjectList *list, Object object) {
   ObjectList *current = list;
-  while (current->next != NULL) {
-    if (current->next->self == object) {
-      return current->next;
+  while (current != NULL) {
+    if (current->self == object) {
+      return current;
+    }
+    current = current->next;
+  }
+  return NULL;
+}
+
+ObjectList *list_find_connection(ObjectList *list, char *ip, char *tcp) {
+  ObjectList *current = list;
+  while (current != NULL) {
+    if (strcmp(current->ip, ip) == 0 && strcmp(current->tcp, tcp) == 0) {
+      return current;
     }
     current = current->next;
   }
@@ -81,7 +111,7 @@ ObjectList *list_find(ObjectList *list, Object object) {
 usize list_size(ObjectList *list) {
   usize size = 0;
   ObjectList *current = list;
-  while (current->next != NULL) {
+  while (current != NULL) {
     size++;
     current = current->next;
   }
