@@ -1,5 +1,6 @@
 #include "input.h"
 #include "commands.h"
+#include "protocols/tcp.h"
 #include "protocols/udp.h"
 #include "util.h"
 
@@ -10,8 +11,7 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-void user_in(Node *node) {
-  int listener_fd = node->listener_fd;
+void user_in(int listener_fd, Node *node) {
   int new_fd, max_fd, counter;
   struct sockaddr addr;
   socklen_t addrlen;
@@ -27,7 +27,7 @@ void user_in(Node *node) {
 
     counter = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
     if (counter == -1) {
-      perror(ERR "select fail");
+      perror("select fail");
       exit(1);
     }
 
@@ -40,12 +40,12 @@ void user_in(Node *node) {
           new_fd = accept(listener_fd, &addr, &addrlen);
 
           if (new_fd == -1) {
-            perror(ERR "accept");
+            perror("accept");
           } else {
             FD_SET(new_fd, &master_fds);
             if (new_fd > max_fd)
               max_fd = new_fd;
-            printf(OK "New connection established: FD %d\n", new_fd);
+            printf("New connection established: FD %d\n", new_fd);
           }
 
         } else {
@@ -54,26 +54,47 @@ void user_in(Node *node) {
           if (n <= 0) {
 
             if (n == 0) {
-              printf(NOTICE "Client on FD %d disconnected\n", i);
+              printf("Client on FD %d disconnected.\n", i);
             } else {
-              perror(ERR "read");
+              perror("read");
             }
             close(i);
             FD_CLR(i, &master_fds);
 
           } else {
-            printf(NOTICE "Message from FD %d: %s\n", i, buffer);
+            printf("Message from FD %d: %s\n", i, buffer);
             if (write(i, buffer, n) == -1) {
-              perror(ERR "write");
+              perror("write");
             }
 
             if (!memcmp(buffer, "x", 1) || !memcmp(buffer, "exit", 4)) {
-              write(1, OK "Terminating\n", 12);
+              write(1, "Terminating\n", 12);
               clean_node(node);
               exit(0);
             }
 
-            process_input_commands(node, buffer);
+            else if (!memcmp(buffer, "ENTRY", 5)) {
+              char ip[16], tcp[6];
+              if (sscanf(buffer, "ENTRY %15s %5s", ip, tcp) == 2) {
+                ndn_entry(node, ip, tcp);
+              } else {
+                printf("Invalid ENTRY message format.\n");
+              }
+            }
+
+
+            else if (!memcmp(buffer, "SAFE", 4)) {
+              char ip[16], tcp[6];
+              if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) == 2) {
+                ndn_safe(node, ip, tcp);
+              } else {
+                printf("Invalid SAFE message format.\n");
+              }
+            }
+
+            else {
+              process_input_commands(node, buffer);
+            }
           }
         }
       }
@@ -82,6 +103,7 @@ void user_in(Node *node) {
 
   close(listener_fd);
 }
+
 
 void process_input_commands(Node *node, char *input) {
   char net[4], ip[16], port[6], name[101];
