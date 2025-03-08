@@ -139,12 +139,14 @@ void process_input_commands(Node *node, char *input) {
 
       if (strcmp(ip, "0.0.0.0") == 0) {
         printf(GREEN "OK" RESET "\tCreated new network\n");
-
-        ndn_register(node, 0);
+        return;
       }
     }
 
     ndn_direct_join(node, ip, port);
+
+    printf(GREEN "OK" RESET "\tDirectly joined network of external %s:%s\n", ip,
+           port);
 
     return;
   }
