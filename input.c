@@ -79,8 +79,6 @@ void user_in(Node *node) {
       }
     }
   }
-
-  close(listener_fd);
 }
 
 void process_input_commands(Node *node, char *input) {

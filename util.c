@@ -10,14 +10,14 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
                 char *regUDP) {
   Node *node = malloc(sizeof(Node));
   if (!node) {
-    perror(RED "ERR" CLEAR "\tmalloc fail");
+    perror(RED "ERR" RESET "\tmalloc fail");
     exit(1);
   }
 
   node->cache_size = cache_size;
   node->cache = calloc(cache_size, sizeof(Object));
   if (!node->cache) {
-    perror(RED "ERR" CLEAR "\tcalloc fail");
+    perror(RED "ERR" RESET "\tcalloc fail");
     exit(1);
   }
 
@@ -29,7 +29,7 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
 
   node->safeguard = malloc(sizeof(AdjacentNode));
   if (!node->safeguard) {
-    perror(RED "ERR" CLEAR "\tmalloc");
+    perror(RED "ERR" RESET "\tmalloc");
     exit(1);
   }
   node->safeguard->ip = NULL;
@@ -39,7 +39,7 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
 
   node->external = malloc(sizeof(AdjacentNode));
   if (!node->external) {
-    perror(RED "ERR" CLEAR "\tmalloc");
+    perror(RED "ERR" RESET "\tmalloc");
     exit(1);
   }
   node->external->ip = NULL;
@@ -56,19 +56,19 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   hints.ai_socktype = SOCK_DGRAM;
 
   if (getaddrinfo(regIP, regUDP, &hints, &res) != 0) {
-    perror(RED "ERR" CLEAR "\tgetaddrinfo");
+    perror(RED "ERR" RESET "\tgetaddrinfo");
     exit(1);
   }
 
   int fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
   if (fd == -1) {
-    perror(RED "ERR" CLEAR "\tsocket");
+    perror(RED "ERR" RESET "\tsocket");
     exit(1);
   }
 
   node->server = malloc(sizeof(Server));
   if (!node->server) {
-    perror(RED "ERR" CLEAR "\tmalloc");
+    perror(RED "ERR" RESET "\tmalloc");
     exit(1);
   }
   node->server->addr = res;
@@ -89,20 +89,20 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
 
   // Get address info for binding the socket
   if (getaddrinfo(NULL, tcp, &hints, &res) != 0) {
-    perror(RED "ERR" CLEAR "\tgetaddrinfo");
+    perror(RED "ERR" RESET "\tgetaddrinfo");
     exit(1);
   }
 
   // Create a socket
   if ((listener_fd =
            socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
-    perror(RED "ERR" CLEAR "\tsocket");
+    perror(RED "ERR" RESET "\tsocket");
     exit(1);
   }
 
   // Bind socket to the specified port
   if (bind(listener_fd, res->ai_addr, res->ai_addrlen) == -1) {
-    perror(RED "ERR" CLEAR "\tbind");
+    perror(RED "ERR" RESET "\tbind");
     exit(1);
   }
 
@@ -111,11 +111,11 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
 
   // Start listening for incoming connections
   if (listen(listener_fd, 5) == -1) {
-    perror(RED "ERR" CLEAR "\tlisten");
+    perror(RED "ERR" RESET "\tlisten");
     exit(1);
   }
 
-  printf(GREEN "OK" CLEAR "\tTCP server listening on port %s\n", tcp);
+  printf(GREEN "OK" RESET "\tTCP server listening on port %s\n", tcp);
 
   node->listener_fd = listener_fd;
 
@@ -169,6 +169,8 @@ void clean_node(Node *node) {
     }
     free(node->server);
   }
+
+  close(node->listener_fd);
 
   free(node);
 }
