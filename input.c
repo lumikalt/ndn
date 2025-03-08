@@ -10,7 +10,8 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-void user_in(int listener_fd, Node *node) {
+void user_in(Node *node) {
+  int listener_fd = node->listener_fd;
   int new_fd, max_fd, counter;
   struct sockaddr addr;
   socklen_t addrlen;

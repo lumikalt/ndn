@@ -26,10 +26,6 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
 
   node->ip = ip;
   node->tcp = tcp;
-  if (!node->ip || !node->tcp) {
-    perror("strdup");
-    exit(1);
-  }
 
   node->safeguard = malloc(sizeof(AdjacentNode));
   if (!node->safeguard) {
@@ -79,32 +75,50 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   node->server->fd = fd;
 
   // create TCP listener
-  // memset(&hints, 0, sizeof hints);
-  // hints.ai_family = AF_INET;
-  // hints.ai_socktype = SOCK_STREAM;
-  // hints.ai_flags = AI_PASSIVE;
 
-  // if (getaddrinfo(NULL, tcp, &hints, &res) != 0) {
-  //   perror("getaddrinfo");
-  //   exit(1);
-  // }
+  int listener_fd, new_fd, max_fd, counter;
+  // struct addrinfo hints, *res;
+  struct sockaddr addr;
+  socklen_t addrlen;
+  char buffer[128];
+  fd_set master_fds, read_fds;
 
-  // int listener_fd = socket(res->ai_family, res->ai_socktype,
-  // res->ai_protocol); if (listener_fd == -1) {
-  //   perror("socket");
-  //   exit(1);
-  // }
+  memset(&hints, 0, sizeof hints);
 
-  // if (bind(listener_fd, res->ai_addr, res->ai_addrlen) == -1) {
-  //   perror("bind");
-  //   exit(1);
-  // }
+  hints.ai_socktype = SOCK_STREAM; // TCP socket
+  hints.ai_flags = AI_PASSIVE;
 
-  // node->listener_fd = listener_fd;
-  // FD_ZERO(&node->master_fds);
-  // FD_ZERO(&node->read_fds);
-  // FD_SET(listener_fd, &node->master_fds);
-  // node->max_fd = listener_fd;
+  // Get address info for binding the socket
+  if (getaddrinfo(NULL, tcp, &hints, &res) != 0) {
+    perror("getaddrinfo");
+    exit(1);
+  }
+
+  // Create a socket
+  if ((listener_fd =
+           socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
+    perror("socket");
+    exit(1);
+  }
+
+  // Bind socket to the specified port
+  if (bind(listener_fd, res->ai_addr, res->ai_addrlen) == -1) {
+    perror("bind");
+    exit(1);
+  }
+
+  // No longer needed, so we free the structure
+  freeaddrinfo(res);
+
+  // Start listening for incoming connections
+  if (listen(listener_fd, 5) == -1) {
+    perror("listen");
+    exit(1);
+  }
+
+  printf("OK: TCP server listening on port %s\n", tcp);
+
+  node->listener_fd = listener_fd;
 
   return node;
 }
@@ -203,4 +217,3 @@ void clear_nodelist(NodeList *nodes) {
   free(nodes->tcp);
   free(nodes);
 }
-

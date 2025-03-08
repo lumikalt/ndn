@@ -65,6 +65,4 @@ typedef struct Node {
 
   // TCP listener
   int listener_fd;
-  int max_fd;
-  fd_set master_fds, read_fds;
 } Node;

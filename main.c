@@ -8,7 +8,6 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -33,51 +32,9 @@ int main(int argc, char *argv[]) {
   char *regIP = argc > 4 ? argv[4] : "193.136.138.142";
   char *regUDP = argc > 5 ? argv[5] : "59000";
 
-  int listener_fd, new_fd, max_fd, counter;
-  struct addrinfo hints, *res;
-  struct sockaddr addr;
-  socklen_t addrlen;
-  char buffer[128];
-  fd_set master_fds, read_fds;
-
-  memset(&hints, 0, sizeof hints);
-
-  hints.ai_socktype = SOCK_STREAM; // TCP socket
-  hints.ai_flags = AI_PASSIVE;
-
-  // Get address info for binding the socket
-  if (getaddrinfo(NULL, TCP, &hints, &res) != 0) {
-    perror("getaddrinfo");
-    exit(1);
-  }
-
-  // Create a socket
-  if ((listener_fd =
-           socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
-    perror("socket");
-    exit(1);
-  }
-
-  // Bind socket to the specified port
-  if (bind(listener_fd, res->ai_addr, res->ai_addrlen) == -1) {
-    perror("bind");
-    exit(1);
-  }
-
-  // No longer needed, so we free the structure
-  freeaddrinfo(res);
-
-  // Start listening for incoming connections
-  if (listen(listener_fd, 5) == -1) {
-    perror("listen");
-    exit(1);
-  }
-
-  printf("OK: TCP server listening on port %s\n", TCP);
-
   Node *node = init_node(cache, IP, TCP, regIP, regUDP);
 
-  user_in(listener_fd, node);
+  user_in(node);
   /* wooooo
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
