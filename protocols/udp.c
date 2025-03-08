@@ -19,11 +19,11 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, RED "ERR" RESET "\tFailed to send the nodes request\n");
+    fprintf(stderr, ERR "Failed to send the nodes request\n");
     return NULL;
   }
 
-  printf(CYAN "NOTICE" RESET "\tRequested nodes for net %03d\n", net);
+  printf(NOTICE "Requested nodes for net %03d\n", net);
 
   /* Wait for the OK */
 
@@ -37,21 +37,20 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   if ((n = recvfrom(s->fd, response, 4096, 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, RED "ERR" RESET "\tNo response from the server\n");
+    fprintf(stderr, ERR "No response from the server\n");
     free(response);
     return NULL;
   }
 
   if (strncmp(response, ok, 14) != 0) {
-    fprintf(stderr,
-            RED "ERR" RESET "\tServer response did not match the spec\n");
+    fprintf(stderr, ERR "Server response did not match the spec\n");
     free(response);
     return NULL;
   }
 
   char *string = response + 14;
 
-  printf(CYAN "NOTICE" RESET "\tParsing nodes\n");
+  printf(NOTICE "Parsing nodes\n");
 
   /* Parse the string */
 
@@ -90,11 +89,11 @@ void ndn_register(Node *node, u16 net) {
 
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, RED "ERR" RESET "\tFailed to send the join request\n");
+    fprintf(stderr, ERR "Failed to send the join request\n");
     return;
   }
 
-  printf(CYAN "NOTICE" RESET "\tRequested registration in net %03d\n", net);
+  printf(NOTICE "Requested registration in net %03d\n", net);
 
   /* Wait for the OK */
 
@@ -103,13 +102,13 @@ void ndn_register(Node *node, u16 net) {
 
   if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, RED "ERR" RESET "\tNo response from the server\n");
+    fprintf(stderr, ERR "No response from the server\n");
     return;
   } else if (strncmp(response, ok, 6) != 0) {
-    fprintf(stderr, RED "ERR" RESET "\tServer refused the registration\n");
+    fprintf(stderr, ERR "Server refused the registration\n");
   }
 
-  printf(GREEN "OK" RESET "\tSuccessfully registered in the network %d\n", net);
+  printf(OK "Successfully registered in the network %d\n", net);
 }
 
 /// Unregister the node from the network, and check if the server accepted the
@@ -123,12 +122,11 @@ void ndn_unregister(Node *node, u16 net) {
 
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr,
-            RED "ERR" RESET "\tFailed to send unregistration request\n");
+    fprintf(stderr, ERR "Failed to send unregistration request\n");
     return;
   }
 
-  printf(CYAN "NOTICE" RESET "\tRequested unregistration from net %03d\n", net);
+  printf(NOTICE "Requested unregistration from net %03d\n", net);
 
   /* Wait for the OK */
 
@@ -137,13 +135,11 @@ void ndn_unregister(Node *node, u16 net) {
 
   if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, RED "ERR" RESET "\tNo response from the server\n");
+    fprintf(stderr, ERR "No response from the server\n");
     return;
   } else if (strncmp(response, ok, 8) != 0) {
-    fprintf(stderr,
-            RED "ERR" RESET "\tServer refused the connection to net %03d\n",
-            net);
+    fprintf(stderr, ERR "Server refused the connection to net %03d\n", net);
   }
 
-  printf(GREEN "OK" RESET "\tSuccessfully left network %d\n", net);
+  printf(OK "Successfully left network %d\n", net);
 }
