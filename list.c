@@ -22,10 +22,15 @@ ObjectList *list_create() {
 }
 
 void list_add(ObjectList *list, Object object, char *ip, char *tcp) {
+  if (list_find(list, object) != NULL) {
+    return;
+  }
+
   ObjectList *current = list;
   while (current->next != NULL) {
     current = current->next;
   }
+
   ObjectList *new_node = malloc(sizeof(ObjectList));
   if (!new_node) {
     perror(RED "ERR" RESET "\tmalloc");
@@ -44,6 +49,27 @@ void list_remove(ObjectList *list, Object object) {
 
   while (current != NULL) {
     if (current->self == object) {
+      if (prev == NULL) {
+        list = current->next;
+      } else {
+        prev->next = current->next;
+      }
+      free(current->ip);
+      free(current->tcp);
+      free(current);
+      return;
+    }
+    prev = current;
+    current = current->next;
+  }
+}
+
+void list_remove_connection(ObjectList *list, char *ip, char *tcp) {
+  ObjectList *current = list;
+  ObjectList *prev = NULL;
+
+  while (current != NULL) {
+    if (strcmp(current->ip, ip) == 0 && strcmp(current->tcp, tcp) == 0) {
       if (prev == NULL) {
         list = current->next;
       } else {
