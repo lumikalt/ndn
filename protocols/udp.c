@@ -10,7 +10,13 @@
 NodeList *ndn_nodes(Node *node, u16 net) {
   Server *s = node->server;
   NodeList *nodes = malloc(sizeof(NodeList));
+  if (!nodes) {
+    perror(ERR "malloc");
+    return NULL;
+  }
   nodes->size = 0;
+  nodes->ip = NULL;
+  nodes->tcp = NULL;
 
   ssize_t n;
   char buffer[256];
@@ -20,6 +26,7 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0) {
     fprintf(stderr, ERR "Failed to send the nodes request\n");
+    clean_nodelist(nodes);
     return NULL;
   }
 
@@ -28,6 +35,11 @@ NodeList *ndn_nodes(Node *node, u16 net) {
   /* Wait for the OK */
 
   char *response = calloc(4096, sizeof(char));
+  if (!response) {
+    perror(ERR "calloc");
+    clean_nodelist(nodes);
+    return NULL;
+  }
 
   char ok[15];
 #pragma GCC diagnostic push
@@ -39,12 +51,14 @@ NodeList *ndn_nodes(Node *node, u16 net) {
                     &s->addr->ai_addrlen)) <= 0) {
     fprintf(stderr, ERR "No response from the server\n");
     free(response);
+    clean_nodelist(nodes);
     return NULL;
   }
 
   if (strncmp(response, ok, 14) != 0) {
     fprintf(stderr, ERR "Server response did not match the spec\n");
     free(response);
+    clean_nodelist(nodes);
     return NULL;
   }
 
@@ -58,6 +72,12 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
   nodes->ip = malloc(newlines * sizeof(char *));
   nodes->tcp = malloc(newlines * sizeof(char *));
+  if (!nodes->ip || !nodes->tcp) {
+    perror(ERR "malloc");
+    free(response);
+    clean_nodelist(nodes);
+    return NULL;
+  }
 
   for (usize i = 0; i < newlines; i++) {
     // Every line is in the format IP TCP\n
@@ -67,6 +87,12 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
     nodes->ip[nodes->size] = malloc(strlen(ip) + 1);
     nodes->tcp[nodes->size] = malloc(strlen(tcp) + 1);
+    if (!nodes->ip[nodes->size] || !nodes->tcp[nodes->size]) {
+      perror(ERR "malloc");
+      free(response);
+      clean_nodelist(nodes);
+      return NULL;
+    }
     strcpy(nodes->ip[nodes->size], ip);
     strcpy(nodes->tcp[nodes->size], tcp);
 
