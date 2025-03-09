@@ -186,7 +186,13 @@ void *user_input(void *arg) {
     }
     //----------
 
-    //---create---
+    //---show topology---
+    if ((strcmp(input, "show topology") == 0) || (strcmp(input, "st") == 0)) {
+      ndn_show_topology(node);
+      continue;
+    }
+
+
     if ((sscanf(input, "create %100s%n", name, &pos) == 1 &&
          input[pos] == '\0') ||
         (sscanf(input, "c %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
