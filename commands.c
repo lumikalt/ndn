@@ -33,8 +33,6 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
 
-  printf(NOTICE "Joining network %03d\n", net);
-
   NodeList *network = ndn_nodes(node, net);
   if (network->size == 0) {
 

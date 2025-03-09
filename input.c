@@ -110,6 +110,8 @@ void ndn_inputs(Node *node) {
   // Leave the network and send all internals the leave message
   // TODO: Implement leave message logic here
 
+  ndn_leave(node);
+
   clean_node(node);
   exit(0);
 }
@@ -147,14 +149,12 @@ void *user_input(void *arg) {
     //---join---
     if ((sscanf(input, "join %3s%n", net, &pos) == 1 && input[pos] == '\0') ||
         (sscanf(input, "j %3s%n", net, &pos) == 1 && input[pos] == '\0')) {
-
       if (!is_valid_net(net)) {
         fprintf(stderr, ERR "Wrong input, it must be 3 digits.\n");
         continue;
       }
 
       ndn_join(node, atoi(net));
-      printf(NOTICE "Joining network %s...\n", net);
       continue;
     }
     //----------
