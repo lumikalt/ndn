@@ -37,6 +37,13 @@ void ndn_join(Node *node, u16 net) {
 
   NodeList *network = ndn_nodes(node, net);
   if (network->size == 0) {
+
+    clean_nodelist(network);
+
+    ndn_register(node, net);
+
+    node->in_net = true;
+
     printf(OK "Lone node, waiting for others\n");
     return;
   }
