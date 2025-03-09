@@ -28,6 +28,11 @@ void ndn_help() {
 }
 
 void ndn_join(Node *node, u16 net) {
+  if (node->in_net) {
+    fprintf(stderr, ERR "Already in a network\n");
+    return;
+  }
+
   printf(NOTICE "Joining network %03d\n", net);
 
   NodeList *network = ndn_nodes(node, net);
@@ -114,10 +119,17 @@ void ndn_join(Node *node, u16 net) {
 
   ndn_register(node, net);
 
+  node->in_net = true;
+
   printf(OK "Joined network %03d\n", net);
 }
 
 void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
+  if (node->in_net) {
+    fprintf(stderr, ERR "Already in a network\n");
+    return;
+  }
+
   int external_fd, errcode;
   ssize_t n;
   struct addrinfo hints, *res;
@@ -174,6 +186,8 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   }
 
   ndn_safe(node, ip, tcp);
+
+  node->in_net = true;
 
   // off you go buddy
   printf(OK "Directly joined network of external %s:%s\n", connectIP,
@@ -238,4 +252,13 @@ void ndn_show_interest_table(Node *node) {
   list_print_interests(node->interests);
 }
 
-void ndn_leave(Node *node) { printf(NOTICE "Leaving network\n"); }
+void ndn_leave(Node *node) {
+  if (!node->in_net) {
+    fprintf(stderr, ERR "Not connected to a network\n");
+    return;
+  }
+
+  node->in_net = false;
+
+  printf(NOTICE "Leaving network\n");
+}
