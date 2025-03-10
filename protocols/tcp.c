@@ -4,6 +4,7 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 void ndn_safe(Node *node, char *ip, char *tcp) {
   // Create and connect the TCP socket to ip:tcp
@@ -122,13 +123,19 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
     node->external->ip = strdup(ip);
     node->external->tcp = strdup(tcp);
 
-    printf(NOTICE "No external yet, chose this connection, %s:%s\n", ip, tcp);
+    printf(NOTICE "No external yet, chose this connection\n");
   }
 
   // Send SAFE to the new internal
   char buffer[128];
   snprintf(buffer, sizeof(buffer), "SAFE %s %s\n", node->external->ip,
            node->external->tcp);
+
+  if (write(fd, buffer, strlen(buffer)) == -1) {
+    fprintf(stderr, ERR "Failed to send SAFE to the new internal\n");
+    return;
+  }
+  printf(OK "Sent SAFE to new internal");
 
   printf(OK "Connected to new internal %s:%s\n", ip, tcp);
 

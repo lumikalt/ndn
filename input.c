@@ -101,10 +101,6 @@ void ndn_inputs(Node *node) {
                 fprintf(stderr, ERR "Invalid SAFE message format\n");
               }
             }
-
-            if (node->exit == true) {
-              break;
-            }
           }
         }
       }
