@@ -87,42 +87,38 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
     exit(1);
   }
 
-  // Add this after creating the listener_fd socket but before binding
+  // Set socket options
   int optval = 1;
   if (setsockopt(listener_fd, SOL_SOCKET, SO_REUSEADDR, &optval,
                  sizeof(optval)) == -1) {
     perror(ERR "setsockopt");
+    close(listener_fd);
     exit(1);
   }
 
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM; // TCP socket
-  hints.ai_flags = AI_PASSIVE;
+  // Create IPv4 address structure directly
+  struct sockaddr_in server_addr;
+  memset(&server_addr, 0, sizeof(server_addr));
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_port = htons(atoi(tcp));
+  server_addr.sin_addr.s_addr = INADDR_ANY; // Listen on all interfaces
 
-  // Get address info for binding the socket
-  int gai_result;
-  if ((gai_result = getaddrinfo(NULL, tcp, &hints, &res)) != 0) {
-    fprintf(stderr, ERR "getaddrinfo: %s\n", gai_strerror(gai_result));
-    exit(1);
-  }
-
-  // Bind socket to the specified port
-  if (bind(listener_fd, res->ai_addr, res->ai_addrlen) == -1) {
+  // Bind socket
+  if (bind(listener_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) ==
+      -1) {
     perror(ERR "bind");
+    close(listener_fd);
     exit(1);
   }
 
-  freeaddrinfo(res);
-
-  // Start listening for incoming connections
+  // Start listening
   if (listen(listener_fd, 5) == -1) {
     perror(ERR "listen");
+    close(listener_fd);
     exit(1);
   }
 
-  printf(OK "TCP server listening on port %s\n", tcp);
-
+  printf(OK "TCP server listening on all interfaces, port %s\n", tcp);
   node->listener_fd = listener_fd;
 
   // IO thread

@@ -142,7 +142,6 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   struct addrinfo hints, *res;
   char buffer[128];
 
-  printf(NOTICE "Directly joining network via %s:%s\n", connectIP, connectTCP);
   node->external->ip = connectIP;
   node->external->tcp = connectTCP;
 
@@ -160,6 +159,8 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
     fprintf(stderr, ERR "getaddrinfo: %s\n", gai_strerror(errcode));
     return;
   }
+
+  printf(NOTICE "Attempting to connect with %s:%s\n", connectIP, connectTCP);
 
   if ((n = connect(external_fd, res->ai_addr, res->ai_addrlen)) == -1) {
     perror(ERR "connect");
