@@ -101,8 +101,9 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   hints.ai_flags = AI_PASSIVE;
 
   // Get address info for binding the socket
-  if (getaddrinfo(NULL, tcp, &hints, &res) != 0) {
-    perror(ERR "getaddrinfo");
+  int gai_result;
+  if ((gai_result = getaddrinfo(NULL, tcp, &hints, &res)) != 0) {
+    fprintf(stderr, ERR "getaddrinfo: %s\n", gai_strerror(gai_result));
     exit(1);
   }
 
