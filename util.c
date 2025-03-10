@@ -83,7 +83,7 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   int listener_fd;
 
   memset(&hints, 0, sizeof hints);
-
+  hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM; // TCP socket
   hints.ai_flags = AI_PASSIVE;
 
