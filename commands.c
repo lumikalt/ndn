@@ -116,14 +116,6 @@ void ndn_join(Node *node, u16 net) {
     fprintf(stderr, ERR "Failed to parse response\n");
     return;
   }
-
-  if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
-    fprintf(stderr, ERR "SAFE contains joining node's own details\n");
-    close(external_fd);
-    freeaddrinfo(res);
-    return;
-  }
-
   ndn_safe(node, ip, tcp);
 
   printf(OK "here");
