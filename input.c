@@ -64,7 +64,7 @@ void ndn_inputs(Node *node) {
           }
 
         } else {
-          int n = read(i, buffer, 128);
+          int n = read(i, buffer, 127); // Leave room for null terminator
 
           if (n <= 0) {
             if (n == 0) {
@@ -75,11 +75,15 @@ void ndn_inputs(Node *node) {
             close(i);
             FD_CLR(i, &master_fds);
           } else {
+            buffer[n] = '\0'; // Ensure null termination
             printf(NOTICE "Message from FD %d: %s\n", i, buffer);
-            if (write(i, buffer, n) == -1) {
-              perror(ERR "write");
-            }
 
+            // Remove the echo behavior if not needed
+            // if (write(i, buffer, n) == -1) {
+            //   perror(ERR "write");
+            // }
+
+            // Process message handlers
             if (!memcmp(buffer, "ENTRY", 5)) {
               char ip[16], tcp[6];
               if (sscanf(buffer, "ENTRY %15s %5s", ip, tcp) == 2) {
@@ -191,7 +195,6 @@ void *user_input(void *arg) {
       ndn_show_topology(node);
       continue;
     }
-
 
     if ((sscanf(input, "create %100s%n", name, &pos) == 1 &&
          input[pos] == '\0') ||
