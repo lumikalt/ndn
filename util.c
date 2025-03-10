@@ -6,6 +6,7 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
@@ -81,6 +82,10 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   // create TCP listener
 
   int listener_fd;
+  if ((listener_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    perror(ERR "socket");
+    exit(1);
+  }
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET;
@@ -90,13 +95,6 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   // Get address info for binding the socket
   if (getaddrinfo(NULL, tcp, &hints, &res) != 0) {
     perror(ERR "getaddrinfo");
-    exit(1);
-  }
-
-  // Create a socket
-  if ((listener_fd =
-           socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
-    perror(ERR "socket");
     exit(1);
   }
 
