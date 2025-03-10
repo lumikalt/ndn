@@ -111,18 +111,22 @@ void ndn_join(Node *node, u16 net) {
   }
 
   // check "SAFE IP TCP\n"
-  char *ip = NULL, *tcp = NULL;
-  if (sscanf(buffer, "SAFE %s %s\n", ip, tcp) != 2) {
+  char ip[16], tcp[6];
+  if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) != 2) {
     fprintf(stderr, ERR "Failed to parse response\n");
     return;
   }
 
   if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
     fprintf(stderr, ERR "SAFE contains joining node's own details\n");
+    close(external_fd);
+    freeaddrinfo(res);
     return;
   }
 
   ndn_safe(node, ip, tcp);
+
+  printf(OK "here");
 
   ndn_register(node, net);
 
@@ -187,8 +191,8 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   }
 
   // check "SAFE IP TCP\n"
-  char *ip = NULL, *tcp = NULL;
-  if (sscanf(buffer, "SAFE %s %s\n", ip, tcp) != 2) {
+  char ip[16], tcp[6]; // Use stack-allocated arrays instead of NULL pointers
+  if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) != 2) { // Add size limiters
     fprintf(stderr, ERR "Failed to parse response\n");
     return;
   }
@@ -233,8 +237,10 @@ void ndn_retrieve(Node *node, const char *name) {
 
 void ndn_show_topology(Node *node) {
   printf(NOTICE "Network topology:\n");
-  printf(RESET "\tSafeguard -> %s:%s\n", node->safeguard->ip, node->safeguard->tcp);
-  printf(RESET "\tExternal  -> %s:%s\n", node->external->ip, node->external->tcp);
+  printf(RESET "\tSafeguard -> %s:%s\n", node->safeguard->ip,
+         node->safeguard->tcp);
+  printf(RESET "\tExternal  -> %s:%s\n", node->external->ip,
+         node->external->tcp);
   printf(RESET "\tInternals:\n");
   for (usize i = 0; i < node->internal_size; i++) {
     printf(RESET "\t->%s:%s\n", node->internal[i]->ip, node->internal[i]->tcp);

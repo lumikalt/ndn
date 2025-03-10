@@ -12,21 +12,25 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
   ssize_t n;
   struct addrinfo hints, *res;
 
-  if (strcmp(node->external->ip, ip) == 0 &&
-      strcmp(node->external->tcp, tcp) == 0) {
-    fprintf(stderr, ERR "Entry contains external node's own details\n");
-    return;
-  }
-  if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
-    fprintf(stderr, ERR "Entry contains joining node's own details\n");
-    return;
-  }
-
   node->safeguard->ip = strdup(ip);
   node->safeguard->tcp = strdup(tcp);
 
   printf(NOTICE "Got external's (%s:%s) external (%s:%s)\n", node->external->ip,
          node->external->tcp, ip, tcp);
+
+  if (ip == NULL || tcp == NULL) {
+    fprintf(stderr, ERR "Invalid SAFE message format\n");
+    return;
+  }
+  if (strcmp(node->external->ip, ip) == 0 &&
+      strcmp(node->external->tcp, tcp) == 0) {
+    printf(NOTICE "SAFE contains external node's own details\n");
+    return;
+  }
+  if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
+    printf(NOTICE "SAFE contains this node's own details\n");
+    return;
+  }
 
   printf(NOTICE "Connecting to safeguard\n");
 
@@ -89,9 +93,6 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
     fprintf(stderr, ERR "Entry contains joining node's own details\n");
     return;
   }
-
-  node->internal[node->internal_size]->ip = ip;
-  node->internal[node->internal_size]->tcp = tcp;
 
   printf(NOTICE "Connecting to new internal %s:%s\n", ip, tcp);
 

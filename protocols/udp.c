@@ -113,13 +113,13 @@ void ndn_register(Node *node, u16 net) {
 
   sprintf(buffer, "REG %03d %s %s", net, node->ip, node->tcp);
 
+  printf(NOTICE "Requesting registration in net %03d\n", net);
+
   if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0) {
     fprintf(stderr, ERR "Failed to send the join request\n");
     return;
   }
-
-  printf(NOTICE "Requested registration in net %03d\n", net);
 
   /* Wait for the OK */
 
