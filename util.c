@@ -87,6 +87,14 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
     exit(1);
   }
 
+  // Add this after creating the listener_fd socket but before binding
+  int optval = 1;
+  if (setsockopt(listener_fd, SOL_SOCKET, SO_REUSEADDR, &optval,
+                 sizeof(optval)) == -1) {
+    perror(ERR "setsockopt");
+    exit(1);
+  }
+
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM; // TCP socket

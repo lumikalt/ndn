@@ -48,8 +48,10 @@ void ndn_join(Node *node, u16 net) {
 
   // Connect to a random node in the network
   int node_id = rand() % network->size;
-  char *node_ip = network->ip[node_id];
-  char *node_tcp = network->tcp[node_id];
+  char *node_ip = strdup(network->ip[node_id]);
+  char *node_tcp = strdup(network->tcp[node_id]);
+
+  clean_nodelist(network);
 
   printf(NOTICE "External %s:%s chosen, attempting connection\n", node_ip,
          node_tcp);

@@ -13,7 +13,7 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
 
   if (strcmp(node->external->ip, ip) == 0 &&
       strcmp(node->external->tcp, tcp) == 0) {
-    fprintf(stderr, ERR "Entry contains joining node's own details\n");
+    fprintf(stderr, ERR "Entry contains external node's own details\n");
     return;
   }
   if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
@@ -21,8 +21,8 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
     return;
   }
 
-  node->safeguard->ip = ip;
-  node->safeguard->tcp = tcp;
+  node->safeguard->ip = strdup(ip);
+  node->safeguard->tcp = strdup(tcp);
 
   printf(NOTICE "Got external's (%s:%s) external (%s:%s)\n", node->external->ip,
          node->external->tcp, ip, tcp);
@@ -58,6 +58,31 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
   int fd, errcode;
   ssize_t n;
   struct addrinfo hints, *res;
+
+  // Initialize node->internal if it's NULL
+  if (node->internal == NULL) {
+    node->internal = malloc(10 * sizeof(AdjacentNode *)); // Start with 10 slots
+    if (!node->internal) {
+      fprintf(stderr, ERR "Failed to allocate internal nodes array\n");
+      return;
+    }
+    node->internal_size = 0;
+
+    // Initialize all pointers to NULL
+    for (int j = 0; j < 10; j++) {
+      node->internal[j] = NULL;
+    }
+  }
+
+  // Allocate a new AdjacentNode for this connection
+  node->internal[node->internal_size] = malloc(sizeof(AdjacentNode));
+  if (!node->internal[node->internal_size]) {
+    fprintf(stderr, ERR "Failed to allocate internal node\n");
+    return;
+  }
+
+  node->internal[node->internal_size]->ip = strdup(ip);
+  node->internal[node->internal_size]->tcp = strdup(tcp);
 
   if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
     fprintf(stderr, ERR "Entry contains joining node's own details\n");
