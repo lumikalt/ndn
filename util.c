@@ -151,6 +151,12 @@ void clean_node(Node *node) {
   free(node->cache);
 
   if (node->safeguard) {
+    if (node->safeguard->ip) {
+      free(node->safeguard->ip);
+    }
+    if (node->safeguard->tcp) {
+      free(node->safeguard->tcp);
+    }
     if (node->safeguard->addr) {
       freeaddrinfo(node->safeguard->addr);
     }
@@ -160,6 +166,12 @@ void clean_node(Node *node) {
     free(node->safeguard);
   }
   if (node->external) {
+    if (node->external->ip) {
+      free(node->external->ip);
+    }
+    if (node->external->tcp) {
+      free(node->external->tcp);
+    }
     if (node->external->addr) {
       freeaddrinfo(node->external->addr);
     }
@@ -171,6 +183,12 @@ void clean_node(Node *node) {
   if (node->internal) {
     for (usize i = 0; i < node->internal_size; i++) {
       if (node->internal[i]) {
+        if (node->internal[i]->ip) {
+          free(node->internal[i]->ip);
+        }
+        if (node->internal[i]->tcp) {
+          free(node->internal[i]->tcp);
+        }
         if (node->internal[i]->addr) {
           freeaddrinfo(node->internal[i]->addr);
         }
