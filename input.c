@@ -184,8 +184,6 @@ void *user_input(void *arg) {
 
       ndn_direct_join(node, ip, port);
 
-      printf(OK "Directly joined network of external %s:%s\n", ip, port);
-
       continue;
     }
     //----------
