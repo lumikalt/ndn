@@ -93,14 +93,15 @@ void ndn_inputs(Node *node) {
               }
             }
 
-            else if (!memcmp(buffer, "SAFE", 4)) {
-              char ip[16], tcp[6];
-              if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) == 2) {
-                ndn_safe(node, ip, tcp);
-              } else {
-                fprintf(stderr, ERR "Invalid SAFE message format\n");
-              }
-            }
+            // else if (!memcmp(buffer, "SAFE", 4)) {
+            //   char ip[16], tcp[6];
+            //   if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) == 2) {
+            //     ndn_safe(node, ip, tcp);
+            //     printf(OK "SAFE message received\n");
+            //   } else {
+            //     fprintf(stderr, ERR "Invalid SAFE message format\n");
+            //   }
+            // }
           }
         }
       }

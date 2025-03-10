@@ -6,11 +6,18 @@
 #include <string.h>
 #include <unistd.h>
 
-void ndn_safe(Node *node, char *ip, char *tcp) {
+// Change function signature
+int ndn_safe(Node *node, char *ip, char *tcp) {
   // Create and connect the TCP socket to ip:tcp
   int fd, errcode;
   ssize_t n;
   struct addrinfo hints, *res;
+
+  // Error checks
+  if (ip == NULL || tcp == NULL) {
+    fprintf(stderr, ERR "Invalid SAFE message format\n");
+    return -1; // Indicate failure
+  }
 
   node->safeguard->ip = strdup(ip);
   node->safeguard->tcp = strdup(tcp);
@@ -18,25 +25,22 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
   printf(NOTICE "Got external's (%s:%s) external (%s:%s)\n", node->external->ip,
          node->external->tcp, ip, tcp);
 
-  if (ip == NULL || tcp == NULL) {
-    fprintf(stderr, ERR "Invalid SAFE message format\n");
-    return;
-  }
   if (strcmp(node->external->ip, ip) == 0 &&
       strcmp(node->external->tcp, tcp) == 0) {
     printf(NOTICE "SAFE contains external node's own details\n");
-    return;
+    return -1; // Indicate failure
   }
+
   if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
     printf(NOTICE "SAFE contains this node's own details\n");
-    return;
+    return -1; // Indicate failure
   }
 
   printf(NOTICE "Connecting to safeguard\n");
 
   if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     fprintf(stderr, ERR "Failed to create the socket\n");
-    return;
+    return -1;
   }
 
   memset(&hints, 0, sizeof hints);
@@ -46,16 +50,18 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
   if ((errcode = getaddrinfo(ip, tcp, &hints, &res)) != 0) {
     fprintf(stderr, ERR "Failed to get the address info (%s)\n",
             gai_strerror(errcode));
-    return;
+    return -1;
   }
 
   if ((n = connect(fd, res->ai_addr, res->ai_addrlen)) == -1) {
     fprintf(stderr, ERR "Failed to connect to the safeguard\n");
-    return;
+    return -1;
   }
 
   node->safeguard->fd = fd;
   node->safeguard->addr = res;
+
+  return 0; // Success
 }
 
 void ndn_entry(Node *node, char *ip, char *tcp) {
@@ -136,7 +142,7 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
     fprintf(stderr, ERR "Failed to send SAFE to the new internal\n");
     return;
   }
-  printf(OK "Sent SAFE to new internal");
+  printf(NOTICE "Sent SAFE to new internal\n");
 
   printf(OK "Connected to new internal %s:%s\n", ip, tcp);
 

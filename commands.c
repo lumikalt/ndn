@@ -116,7 +116,10 @@ void ndn_join(Node *node, u16 net) {
     fprintf(stderr, ERR "Failed to parse response\n");
     return;
   }
-  ndn_safe(node, ip, tcp);
+  if (ndn_safe(node, ip, tcp) < 0) {
+    fprintf(stderr, ERR "Failed to establish safeguard connection\n");
+    return; // Return from ndn_join on failure
+  }
 
   printf(OK "here");
 

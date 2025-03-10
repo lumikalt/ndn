@@ -8,7 +8,7 @@
 void ndn_entry(Node *node, char *ip, char *tcp);
 
 // Node sending its external link
-void ndn_safe(Node *, char *ip, char *tcp);
+int ndn_safe(Node *, char *ip, char *tcp);
 
 /* Object protocol */
 
