@@ -230,12 +230,11 @@ void ndn_retrieve(Node *node, const char *name) {
 
 void ndn_show_topology(Node *node) {
   printf(NOTICE "Network topology:\n");
-  printf(NOTICE "\tSafeguard: %s:%s\n", node->safeguard->ip,
-         node->safeguard->tcp);
-  printf(NOTICE "\tExternal: %s:%s\n", node->external->ip, node->external->tcp);
-  printf(NOTICE "\tInternal:\n");
+  printf(RESET "\tSafeguard -> %s:%s\n", node->safeguard->ip, node->safeguard->tcp);
+  printf(RESET "\tExternal  -> %s:%s\n", node->external->ip, node->external->tcp);
+  printf(RESET "\tInternals:\n");
   for (usize i = 0; i < node->internal_size; i++) {
-    printf(NOTICE "\t\t%s:%s\n", node->internal[i]->ip, node->internal[i]->tcp);
+    printf(RESET "\t->%s:%s\n", node->internal[i]->ip, node->internal[i]->tcp);
   }
 }
 
