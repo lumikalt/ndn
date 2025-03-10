@@ -119,9 +119,16 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
   if (node->external->fd == -1) { // No external yet
     node->external->fd = fd;
     node->external->addr = res;
-    node->external->ip = ip;
-    node->external->tcp = tcp;
+    node->external->ip = strdup(ip);
+    node->external->tcp = strdup(tcp);
+
+    printf(NOTICE "No external yet, chose this connection, %s:%s\n", ip, tcp);
   }
+
+  // Send SAFE to the new internal
+  char buffer[128];
+  snprintf(buffer, sizeof(buffer), "SAFE %s %s\n", node->external->ip,
+           node->external->tcp);
 
   printf(OK "Connected to new internal %s:%s\n", ip, tcp);
 
