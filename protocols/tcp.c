@@ -89,27 +89,69 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
     return;
   }
 
+  // Store IP and TCP
   node->internal[node->internal_size]->ip = strdup(ip);
   node->internal[node->internal_size]->tcp = strdup(tcp);
+  node->internal[node->internal_size]->fd = -1; // Will set this later
+  node->internal[node->internal_size]->addr = NULL;
 
-  if (strcmp(node->ip, ip) == 0 && strcmp(node->tcp, tcp) == 0) {
-    fprintf(stderr, ERR "Entry contains joining node's own details\n");
-    return;
+  // Check if we need to update external
+  if (node->external->fd == -1) { // No external yet
+    node->external->ip = strdup(ip);
+    node->external->tcp = strdup(tcp);
+    // Don't set fd and addr yet - we'll connect below
+
+    printf(NOTICE "No external yet, chose this connection\n");
   }
 
-  printf(NOTICE "Connecting to new internal %s:%s\n", ip, tcp);
+  // IMPORTANT: Send SAFE response BEFORE connecting back
+  // This prevents the deadlock
+  char buffer[128];
+  snprintf(buffer, sizeof(buffer), "SAFE %s %s\n",
+           node->external->ip ? node->external->ip : "0.0.0.0",
+           node->external->tcp ? node->external->tcp : "0");
 
-  if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-    fprintf(stderr, ERR "Failed to create the socket\n");
-    return;
+  // Find the socket connected to this client
+  int client_fd = -1;
+  for (int i = 0; i <= FD_SETSIZE; i++) {
+    if (i != node->listener_fd && i != STDIN_FILENO && i > 2) {
+      struct sockaddr_in addr;
+      socklen_t addr_len = sizeof(addr);
+      if (getpeername(i, (struct sockaddr *)&addr, &addr_len) == 0) {
+        char client_ip[16];
+        inet_ntop(AF_INET, &(addr.sin_addr), client_ip, sizeof(client_ip));
+        if (strcmp(client_ip, ip) == 0) {
+          client_fd = i;
+          break;
+        }
+      }
+    }
   }
+
+  if (client_fd != -1) {
+    printf(NOTICE "Sending SAFE response to %s:%s on FD %d\n", ip, tcp,
+           client_fd);
+    if (write(client_fd, buffer, strlen(buffer)) < 0) {
+      perror(ERR "write SAFE");
+    }
+  } else {
+    fprintf(stderr, ERR "Could not find client socket for %s:%s\n", ip, tcp);
+  }
+
+  // Now connect back to the new node
+  printf(NOTICE "Now connecting to new internal %s:%s\n", ip, tcp);
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
 
   if ((errcode = getaddrinfo(ip, tcp, &hints, &res)) != 0) {
-    fprintf(stderr, ERR "Failed to get the address info\n");
+    fprintf(stderr, ERR "getaddrinfo: %s\n", gai_strerror(errcode));
+    return;
+  }
+
+  if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    fprintf(stderr, ERR "Failed to create the socket\n");
     return;
   }
 
@@ -118,30 +160,17 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
     return;
   }
 
+  // Now store the connection details
   node->internal[node->internal_size]->fd = fd;
   node->internal[node->internal_size]->addr = res;
 
-  if (node->external->fd == -1) { // No external yet
+  if (node->external->fd == -1) { // Update external if needed
     node->external->fd = fd;
     node->external->addr = res;
-    node->external->ip = strdup(ip);
-    node->external->tcp = strdup(tcp);
-
-    printf(NOTICE "No external yet, chose this connection\n");
   }
 
-  // Send SAFE to the new internal
-  char buffer[128];
-  snprintf(buffer, sizeof(buffer), "SAFE %s %s\n", node->external->ip,
-           node->external->tcp);
-
-  if (write(fd, buffer, strlen(buffer)) == -1) {
-    fprintf(stderr, ERR "Failed to send SAFE to the new internal\n");
-    return;
-  }
-  printf(NOTICE "Sent SAFE to new internal\n");
-
-  printf(OK "Connected to new internal %s:%s\n", ip, tcp);
-
+  // Increment internal size
   node->internal_size++;
+
+  printf(OK "Added new internal %s:%s\n", ip, tcp);
 }
