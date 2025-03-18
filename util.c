@@ -1,5 +1,4 @@
 #include "util.h"
-#include "input.h"
 #include "list.h"
 #include "types.h"
 
@@ -127,21 +126,9 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   printf(OK "TCP server listening on all interfaces, port %s\n", tcp);
   node->listener_fd = listener_fd;
 
-  // IO thread
+  // No thread creation - just return the node
+  printf(OK "Node initialized, starting main loop...\n");
 
-  pthread_t input_thread;
-  if (pthread_create(&input_thread, NULL, user_input, (void *)node) != 0) {
-    perror(ERR "Failed to create input thread");
-    exit(1);
-  }
-
-  // Detach the thread to avoid memory leaks
-  if (pthread_detach(input_thread) != 0) {
-    perror(ERR "Failed to detach input thread");
-    exit(1);
-  }
-
-  node->thread = input_thread;
   node->exit = false;
 
   return node;
@@ -214,10 +201,6 @@ void clean_node(Node *node) {
   }
 
   close(node->listener_fd);
-
-  // clean the thread
-  if (node->exit == false)
-    pthread_cancel(node->thread);
 
   close(node->pipe_read_fd);
   close(node->pipe_write_fd);

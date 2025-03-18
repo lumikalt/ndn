@@ -6,6 +6,7 @@
 #include "util.h"
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,13 +36,9 @@ void ndn_join(Node *node, u16 net) {
 
   NodeList *network = ndn_nodes(node, net);
   if (network->size == 0) {
-
     clean_nodelist(network);
-
     ndn_register(node, net);
-
     node->in_net = true;
-
     printf(OK "Lone node, waiting for others\n");
     return;
   }
@@ -60,6 +57,8 @@ void ndn_join(Node *node, u16 net) {
   int external_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (external_fd < 0) {
     fprintf(stderr, ERR "Failed to create socket\n");
+    free(node_ip);
+    free(node_tcp);
     return;
   }
 
@@ -74,6 +73,8 @@ void ndn_join(Node *node, u16 net) {
   if (status != 0) {
     fprintf(stderr, ERR "getaddrinfo error: %s\n", gai_strerror(status));
     close(external_fd);
+    free(node_ip);
+    free(node_tcp);
     return;
   }
 
@@ -81,6 +82,8 @@ void ndn_join(Node *node, u16 net) {
     perror(ERR "Connection to nearby node failed");
     close(external_fd);
     freeaddrinfo(res);
+    free(node_ip);
+    free(node_tcp);
     return;
   }
 
@@ -91,48 +94,58 @@ void ndn_join(Node *node, u16 net) {
   node->external->addr = res;
   node->external->fd = external_fd;
 
-  // ENTRY
-
+  // ENTRY message
   char buffer[128];
   ssize_t n;
-
   snprintf(buffer, sizeof(buffer), "ENTRY %s %s\n", node->ip, node->tcp);
 
   if ((n = write(external_fd, buffer, strlen(buffer))) < 0) {
     perror(ERR "write");
+    close(external_fd);
+    freeaddrinfo(res);
+    free(node_ip);
+    free(node_tcp);
     return;
   }
 
-  // wait for the SAFE response
+  // Read SAFE response
   memset(buffer, 0, sizeof(buffer));
-  if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) < 0) {
+  if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) <= 0) {
     perror(ERR "read");
+    close(external_fd);
+    freeaddrinfo(res);
+    free(node_ip);
+    free(node_tcp);
     return;
   }
 
-  // check "SAFE IP TCP\n"
+  // Process SAFE response
+  buffer[n] = '\0';
+  printf(NOTICE "Received response: %s\n", buffer);
+
+  // Parse and handle SAFE
   char ip[16], tcp[6];
-  if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) != 2) {
-    fprintf(stderr, ERR "Failed to parse response\n");
+  if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) == 2) {
+    ndn_safe(node, ip, tcp);
+  } else {
+    fprintf(stderr, ERR "Invalid SAFE response: %s\n", buffer);
+    close(external_fd);
+    freeaddrinfo(res);
+    free(node_ip);
+    free(node_tcp);
     return;
   }
-  if (ndn_safe(node, ip, tcp) < 0) {
-    fprintf(stderr, ERR "Failed to establish safeguard connection\n");
-    return; // Return from ndn_join on failure
-  }
 
-  printf(OK "here");
-
+  // Now register the node with the network
+  printf(OK "Registering node\n");
   ndn_register(node, net);
-
   node->in_net = true;
-
   printf(OK "Joined network %03d\n", net);
 }
 
 void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   if (node->in_net) {
-    fprintf(stderr, ERR "Already in a network\n");
+    fprintf(stderr, ERR "Already in a network, `(l)eave` first\n");
     return;
   }
 
@@ -140,9 +153,6 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   ssize_t n;
   struct addrinfo hints, *res;
   char buffer[128];
-
-  node->external->ip = connectIP;
-  node->external->tcp = connectTCP;
 
   // Create and connect the TCP socket to connectIP:connectTCP
   if ((external_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -156,6 +166,7 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
 
   if ((errcode = getaddrinfo(connectIP, connectTCP, &hints, &res)) != 0) {
     fprintf(stderr, ERR "getaddrinfo: %s\n", gai_strerror(errcode));
+    close(external_fd);
     return;
   }
 
@@ -163,40 +174,71 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
 
   if ((n = connect(external_fd, res->ai_addr, res->ai_addrlen)) == -1) {
     perror(ERR "connect");
+    close(external_fd);
+    freeaddrinfo(res);
     return;
   }
 
-  node->external->fd = external_fd;
+  printf(NOTICE "Connected to external %s:%s\n", connectIP, connectTCP);
+
+  // Set up external node information
+  node->external->ip = strdup(connectIP);
+  node->external->tcp = strdup(connectTCP);
   node->external->addr = res;
+  node->external->fd = external_fd;
 
-  // ENTRY
-
+  // Send ENTRY message
   snprintf(buffer, sizeof(buffer), "ENTRY %s %s\n", node->ip, node->tcp);
-
   if ((n = write(external_fd, buffer, strlen(buffer))) < 0) {
     perror(ERR "write");
+    close(external_fd);
+    freeaddrinfo(res);
+    free(node->external->ip);
+    free(node->external->tcp);
+    node->external->ip = NULL;
+    node->external->tcp = NULL;
+    node->external->addr = NULL;
+    node->external->fd = -1;
     return;
   }
 
-  // wait for the SAFE response
+  // Read SAFE response
   memset(buffer, 0, sizeof(buffer));
-  if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) < 0) {
+  if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) <= 0) {
     perror(ERR "read");
+    close(external_fd);
+    freeaddrinfo(res);
+    free(node->external->ip);
+    free(node->external->tcp);
+    node->external->ip = NULL;
+    node->external->tcp = NULL;
+    node->external->addr = NULL;
+    node->external->fd = -1;
     return;
   }
 
-  // check "SAFE IP TCP\n"
-  char ip[16], tcp[6]; // Use stack-allocated arrays instead of NULL pointers
-  if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) != 2) { // Add size limiters
-    fprintf(stderr, ERR "Failed to parse response\n");
+  // Process SAFE response
+  buffer[n] = '\0';
+  printf(NOTICE "Received response: %s\n", buffer);
+
+  // Parse and handle SAFE
+  char ip[16], tcp[6];
+  if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) == 2) {
+    ndn_safe(node, ip, tcp);
+  } else {
+    fprintf(stderr, ERR "Invalid SAFE response: %s\n", buffer);
+    close(external_fd);
+    freeaddrinfo(res);
+    free(node->external->ip);
+    free(node->external->tcp);
+    node->external->ip = NULL;
+    node->external->tcp = NULL;
+    node->external->addr = NULL;
+    node->external->fd = -1;
     return;
   }
-
-  ndn_safe(node, ip, tcp);
 
   node->in_net = true;
-
-  // off you go buddy
   printf(OK "Directly joined network of external %s:%s\n", connectIP,
          connectTCP);
 }

@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
   if (argc < 4) {
     fprintf(stderr,
             RED "ERR" RESET "\tUsage: %s <cache> <IP> <TCP> "
-                            "[regIP=193.136.138.142] [regUDP=59000]\n"
+                "[regIP=193.136.138.142] [regUDP=59000]\n"
                 "  cache  - size of the node cache\n"
                 "  IP     - IP address of the server\n"
                 "  TCP    - TCP port to listen on\n"
@@ -35,7 +35,9 @@ int main(int argc, char *argv[]) {
 
   Node *node = init_node(cache, IP, TCP, regIP, regUDP);
 
-  ndn_inputs(node);
+  // Start the single-threaded event loop
+  ndn_run(node);
 
+  // We only get here if ndn_run returns, which happens on exit
   return 0;
 }
