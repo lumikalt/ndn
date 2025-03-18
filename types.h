@@ -26,7 +26,6 @@ typedef struct {
 
 // Adjacent node TCP connection
 typedef struct {
-  struct addrinfo *addr;
   int fd;
 
   char *ip;
@@ -70,7 +69,4 @@ typedef struct Node {
   // IO handling thread
   pthread_t thread;
   bool exit;
-  // exit pipe
-  int pipe_read_fd;
-  int pipe_write_fd;
 } Node;

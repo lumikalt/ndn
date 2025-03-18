@@ -58,8 +58,22 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
     return;
   }
 
+  freeaddrinfo(res);
+
   node->safeguard->fd = fd;
-  node->safeguard->addr = res;
+
+  printf(NOTICE "Also adding as internal\n");
+
+  grow_internal(node);
+  node->internal[node->internal_size] = malloc(sizeof(AdjacentNode));
+  if (!node->internal[node->internal_size]) {
+    fprintf(stderr, ERR "Failed to allocate internal node\n");
+    return;
+  }
+
+  node->internal[node->internal_size]->ip = strdup(ip);
+  node->internal[node->internal_size]->tcp = strdup(tcp);
+  node->internal[node->internal_size]->fd = fd;
 
   printf(OK "Connected to safeguard\n");
 
@@ -93,7 +107,6 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
   node->internal[node->internal_size]->ip = strdup(ip);
   node->internal[node->internal_size]->tcp = strdup(tcp);
   node->internal[node->internal_size]->fd = -1; // Will set this later
-  node->internal[node->internal_size]->addr = NULL;
 
   // Check if we need to update external
   if (node->external->fd == -1) { // No external yet
@@ -107,9 +120,9 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
   // IMPORTANT: Send SAFE response BEFORE connecting back
   // This prevents the deadlock
   char buffer[128];
-  snprintf(buffer, sizeof(buffer), "SAFE %s %s\n",
-           node->external->ip ? node->external->ip : "0.0.0.0",
-           node->external->tcp ? node->external->tcp : "0");
+  sprintf(buffer, "SAFE %s %s\n",
+          node->external->ip ? node->external->ip : "0.0.0.0",
+          node->external->tcp ? node->external->tcp : "0");
 
   // Find the socket connected to this client
   int client_fd = -1;
@@ -160,14 +173,14 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
     return;
   }
 
+  freeaddrinfo(res);
+
   // Now store the connection details
   node->internal[node->internal_size]->fd = fd;
-  node->internal[node->internal_size]->addr = res;
 
-  if (node->external->fd == -1) { // Update external if needed
+  if (node->external->fd == -1) // Update external if needed
     node->external->fd = fd;
-    node->external->addr = res;
-  }
+
 
   // Increment internal size
   node->internal_size++;

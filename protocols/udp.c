@@ -115,7 +115,7 @@ void ndn_register(Node *node, u16 net) {
 
   printf(NOTICE "Requesting registration in net %03d\n", net);
 
-  if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
+  if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0) {
     fprintf(stderr, ERR "Failed to send the join request\n");
     return;
@@ -146,7 +146,7 @@ void ndn_unregister(Node *node, u16 net) {
 
   sprintf(buffer, "UNREG %03d %s %s", net, node->ip, node->tcp);
 
-  if ((n = sendto(s->fd, buffer, sizeof(buffer), 0, s->addr->ai_addr,
+  if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0) {
     fprintf(stderr, ERR "Failed to send unregistration request\n");
     return;

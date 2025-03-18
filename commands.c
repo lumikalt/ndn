@@ -89,9 +89,10 @@ void ndn_join(Node *node, u16 net) {
 
   printf(NOTICE "Connected to external %s:%s\n", node_ip, node_tcp);
 
+  freeaddrinfo(res);
+
   node->external->ip = node_ip;
   node->external->tcp = node_tcp;
-  node->external->addr = res;
   node->external->fd = external_fd;
 
   // ENTRY message
@@ -102,7 +103,6 @@ void ndn_join(Node *node, u16 net) {
   if ((n = write(external_fd, buffer, strlen(buffer))) < 0) {
     perror(ERR "write");
     close(external_fd);
-    freeaddrinfo(res);
     free(node_ip);
     free(node_tcp);
     return;
@@ -113,7 +113,6 @@ void ndn_join(Node *node, u16 net) {
   if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) <= 0) {
     perror(ERR "read");
     close(external_fd);
-    freeaddrinfo(res);
     free(node_ip);
     free(node_tcp);
     return;
@@ -130,7 +129,6 @@ void ndn_join(Node *node, u16 net) {
   } else {
     fprintf(stderr, ERR "Invalid SAFE response: %s\n", buffer);
     close(external_fd);
-    freeaddrinfo(res);
     free(node_ip);
     free(node_tcp);
     return;
@@ -181,23 +179,22 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
 
   printf(NOTICE "Connected to external %s:%s\n", connectIP, connectTCP);
 
+  freeaddrinfo(res);
+
   // Set up external node information
   node->external->ip = strdup(connectIP);
   node->external->tcp = strdup(connectTCP);
-  node->external->addr = res;
   node->external->fd = external_fd;
 
   // Send ENTRY message
-  snprintf(buffer, sizeof(buffer), "ENTRY %s %s\n", node->ip, node->tcp);
+  sprintf(buffer, "ENTRY %s %s\n", node->ip, node->tcp);
   if ((n = write(external_fd, buffer, strlen(buffer))) < 0) {
     perror(ERR "write");
     close(external_fd);
-    freeaddrinfo(res);
     free(node->external->ip);
     free(node->external->tcp);
     node->external->ip = NULL;
     node->external->tcp = NULL;
-    node->external->addr = NULL;
     node->external->fd = -1;
     return;
   }
@@ -207,12 +204,10 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) <= 0) {
     perror(ERR "read");
     close(external_fd);
-    freeaddrinfo(res);
     free(node->external->ip);
     free(node->external->tcp);
     node->external->ip = NULL;
     node->external->tcp = NULL;
-    node->external->addr = NULL;
     node->external->fd = -1;
     return;
   }
@@ -233,7 +228,6 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
     free(node->external->tcp);
     node->external->ip = NULL;
     node->external->tcp = NULL;
-    node->external->addr = NULL;
     node->external->fd = -1;
     return;
   }

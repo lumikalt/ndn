@@ -36,7 +36,6 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   }
   node->safeguard->ip = NULL;
   node->safeguard->tcp = NULL;
-  node->safeguard->addr = NULL;
   node->safeguard->fd = -1;
 
   node->external = malloc(sizeof(AdjacentNode));
@@ -46,7 +45,6 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   }
   node->external->ip = NULL;
   node->external->tcp = NULL;
-  node->external->addr = NULL;
   node->external->fd = -1;
 
   node->internal = calloc(10, sizeof(AdjacentNode *));
@@ -150,9 +148,6 @@ void clean_node(Node *node) {
     if (node->safeguard->tcp) {
       free(node->safeguard->tcp);
     }
-    if (node->safeguard->addr) {
-      freeaddrinfo(node->safeguard->addr);
-    }
     if (node->safeguard->fd != -1) {
       close(node->safeguard->fd);
     }
@@ -164,9 +159,6 @@ void clean_node(Node *node) {
     }
     if (node->external->tcp) {
       free(node->external->tcp);
-    }
-    if (node->external->addr) {
-      freeaddrinfo(node->external->addr);
     }
     if (node->external->fd != -1) {
       close(node->external->fd);
@@ -182,9 +174,6 @@ void clean_node(Node *node) {
         if (node->internal[i]->tcp) {
           free(node->internal[i]->tcp);
         }
-        if (node->internal[i]->addr) {
-          freeaddrinfo(node->internal[i]->addr);
-        }
         if (node->internal[i]->fd != -1) {
           close(node->internal[i]->fd);
         }
@@ -193,6 +182,7 @@ void clean_node(Node *node) {
     }
     free(node->internal);
   }
+
   if (node->server) {
     if (node->server->addr) {
       freeaddrinfo(node->server->addr);
@@ -200,10 +190,8 @@ void clean_node(Node *node) {
     free(node->server);
   }
 
-  close(node->listener_fd);
-
-  close(node->pipe_read_fd);
-  close(node->pipe_write_fd);
+  if (node->listener_fd != -1)
+    close(node->listener_fd);
 
   free(node);
 }
@@ -250,4 +238,16 @@ void clean_nodelist(NodeList *nodes) {
   free(nodes->ip);
   free(nodes->tcp);
   free(nodes);
+}
+
+void grow_internal(Node *node) {
+  if (node->internal_size == node->internal_capacity) {
+    node->internal_capacity *= 2;
+    node->internal = realloc(node->internal,
+                             node->internal_capacity * sizeof(AdjacentNode *));
+    if (!node->internal) {
+      perror(ERR "realloc");
+      exit(1);
+    }
+  }
 }
