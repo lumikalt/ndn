@@ -106,8 +106,48 @@ void ndn_run(Node *node) {
             perror(ERR "read");
           }
 
+          // Update node structures when a client disconnects
+          if (node->external && node->external->fd == i) {
+            printf(NOTICE "External node disconnected\n");
+            free(node->external->ip);
+            free(node->external->tcp);
+            node->external->ip = NULL;
+            node->external->tcp = NULL;
+            node->external->fd = -1;
+          }
+
+          // Check all internals
+          for (usize j = 0; j < node->internal_size; j++) {
+            if (node->internal[j] && node->internal[j]->fd == i) {
+              printf(NOTICE "Internal node %zu disconnected\n", j);
+              free(node->internal[j]->ip);
+              free(node->internal[j]->tcp);
+              free(node->internal[j]);
+
+              // Shift remaining nodes down to fill the gap
+              for (usize k = j; k < node->internal_size - 1; k++) {
+                node->internal[k] = node->internal[k + 1];
+              }
+              node->internal_size--;
+              node->internal[node->internal_size] = NULL;
+              break;
+            }
+          }
+
+          // Close the socket and remove from fd set
           close(i);
           FD_CLR(i, &master_fds);
+
+          // Recalculate max_fd if needed
+          if (i == max_fd) {
+            max_fd = listener_fd; // Start with listener
+            for (int j = 0; j <= FD_SETSIZE; j++) {
+              if (FD_ISSET(j, &master_fds) && j > max_fd) {
+                max_fd = j;
+              }
+            }
+          }
+
           printf(YELLOW "> ");
           fflush(stdout);
         } else {
