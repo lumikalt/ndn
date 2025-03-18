@@ -55,6 +55,7 @@ typedef struct Node {
   AdjacentNode *external;
   AdjacentNode **internal;
   usize internal_size;
+  usize internal_capacity;
 
   Server *server;
 

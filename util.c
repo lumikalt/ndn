@@ -50,7 +50,13 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   node->external->addr = NULL;
   node->external->fd = -1;
 
-  node->internal = NULL;
+  node->internal = calloc(10, sizeof(AdjacentNode *));
+  if (!node->internal) {
+    perror(ERR "calloc");
+    exit(1);
+  }
+  node->internal_size = 0;
+  node->internal_capacity = 10;
 
   // create UDP client connection to the server
   struct addrinfo hints, *res;
