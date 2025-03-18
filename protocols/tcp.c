@@ -86,6 +86,15 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
       node->internal[j] = NULL;
     }
   }
+  else if (node->internal_size == node->internal_capacity) {
+    // Grow the array
+    node->internal = realloc(node->internal, 2 * node->internal_capacity * sizeof(AdjacentNode *));
+    if (!node->internal) {
+      fprintf(stderr, ERR "Failed to reallocate internal nodes array\n");
+      return;
+    }
+    node->internal_capacity *= 2;
+  }
 
   // Allocate a new AdjacentNode for this connection
   node->internal[node->internal_size] = malloc(sizeof(AdjacentNode));
