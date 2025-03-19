@@ -62,7 +62,7 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
 
-  // node setup
+  // Node setup
   struct addrinfo hints, *res;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET;
@@ -88,7 +88,6 @@ void ndn_join(Node *node, u16 net) {
   }
 
   printf(NOTICE "Connected to external %s:%s\n", node_ip, node_tcp);
-
   freeaddrinfo(res);
 
   node->external->ip = node_ip;
@@ -108,9 +107,7 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
 
-
-
-  // Read SAFE response
+  // Read responses (which may include multiple messages)
   memset(buffer, 0, sizeof(buffer));
   if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) <= 0) {
     perror(ERR "read");
@@ -119,24 +116,35 @@ void ndn_join(Node *node, u16 net) {
     free(node_tcp);
     return;
   }
-
-  // Process SAFE response
   buffer[n] = '\0';
   printf(NOTICE "Received response: %s\n", buffer);
 
-  // next_msg = strtok(buffer, "\n");
-  // while(next_msg != NULL) {
-  // process msg
-  // ...
-  // next_msg = strtok(NULL, "\n");
-  // }
+  // Process each message separated by newline
+  char *next_msg = strtok(buffer, "\n");
+  int safe_found = 0;
+  while (next_msg != NULL) {
+    // Check if the message is a SAFE message
+    if (strncmp(next_msg, "SAFE", 4) == 0) {
+      char ip[16], tcp[6];
+      if (sscanf(next_msg, "SAFE %15s %5s", ip, tcp) == 2) {
+        ndn_safe(node, ip, tcp);
+        safe_found = 1;
+      } else {
+        fprintf(stderr, ERR "Invalid SAFE message: %s\n", next_msg);
+        close(external_fd);
+        free(node_ip);
+        free(node_tcp);
+        return;
+      }
+    } else {
+      // Process or ignore other messages (e.g., ENTRY) as needed
+      printf(NOTICE "Ignoring message: %s\n", next_msg);
+    }
+    next_msg = strtok(NULL, "\n");
+  }
 
-  // Parse and handle SAFE
-  char ip[16], tcp[6];
-  if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) == 2) {
-    ndn_safe(node, ip, tcp);
-  } else {
-    fprintf(stderr, ERR "Invalid SAFE response: %s\n", buffer);
+  if (!safe_found) {
+    fprintf(stderr, ERR "No SAFE message received\n");
     close(external_fd);
     free(node_ip);
     free(node_tcp);
@@ -149,6 +157,7 @@ void ndn_join(Node *node, u16 net) {
   node->in_net = true;
   printf(OK "Joined network %03d\n", net);
 }
+
 
 void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   if (node->in_net) {
