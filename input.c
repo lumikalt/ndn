@@ -98,6 +98,7 @@ void ndn_run(Node *node) {
       if (i != listener_fd && i != STDIN_FILENO && FD_ISSET(i, &read_fds)) {
         memset(buffer, 0, sizeof(buffer));
         int bytes_read = read(i, buffer, sizeof(buffer) - 1);
+        printf("%d: %s\n\n", bytes_read, buffer);
 
         if (bytes_read <= 0) {
           if (bytes_read == 0) {
@@ -159,18 +160,27 @@ void ndn_run(Node *node) {
             char ip[16], tcp[6];
             if (sscanf(buffer, "ENTRY %15s %5s", ip, tcp) == 2) {
               printf(NOTICE "Processing ENTRY from %s:%s\n", ip, tcp);
-              ndn_entry(node, ip, tcp);
+              ndn_entry(node, ip, tcp, i);
             } else {
               fprintf(stderr, ERR "Invalid ENTRY format\n");
             }
-          } else if (!memcmp(buffer, "SAFE", 4)) {
+
+          }
+
+          if (!memcmp(buffer, "SAFE", 4)) {
             char ip[16], tcp[6];
-            if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) == 2) {
-              printf(NOTICE "Processing SAFE from %s:%s\n", ip, tcp);
-              ndn_safe(node, ip, tcp);
+            if (strncmp(buffer, "SAFE ", 5) == 0) {
+              if (sscanf(buffer + 5, "%15s %5s", ip, tcp) == 2) {
+                ndn_safe(node, ip, tcp);
+              } else {
+                fprintf(stderr, ERR "Invalid SAFE format: %s\n", buffer);
+              }
             } else {
-              fprintf(stderr, ERR "Invalid SAFE format\n");
+              fprintf(stderr, ERR "Unexpected response: %s\n", buffer);
+
+              return;
             }
+
           }
           // Add other command handlers here
 

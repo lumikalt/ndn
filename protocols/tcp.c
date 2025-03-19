@@ -80,11 +80,12 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
   return;
 }
 
-void ndn_entry(Node *node, char *ip, char *tcp) {
+void ndn_entry(Node *node, char *ip, char *tcp, int fd2) {
   // Create and connect the TCP socket to ip:tcp
   int fd, errcode;
   ssize_t n;
   struct addrinfo hints, *res;
+  char buffer[128];
 
   if (node->internal_size == node->internal_capacity) {
     node->internal = realloc(node->internal, 2 * node->internal_capacity *
@@ -106,20 +107,65 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
   // Store IP and TCP
   node->internal[node->internal_size]->ip = strdup(ip);
   node->internal[node->internal_size]->tcp = strdup(tcp);
-  node->internal[node->internal_size]->fd = -1; // Will set this later
+  node->internal[node->internal_size]->fd = fd2; // Will set this later
+
+  // Increment internal size
+  node->internal_size++;
+
+  printf(OK "Added new internal %s:%s\n", ip, tcp);
+
+
 
   // Check if we need to update external
-  if (node->external->fd == -1) { // No external yet
+  if (node->external->fd == -1) { // Se não tiver externo
     node->external->ip = strdup(ip);
     node->external->tcp = strdup(tcp);
-    // Don't set fd and addr yet - we'll connect below
+    node->external->fd = fd2;
 
-    printf(NOTICE "No external yet, chose this connection\n");
+    sprintf(buffer, "SAFE %s %s\n",
+            node->external->ip ? node->external->ip : "0.0.0.0",
+            node->external->tcp ? node->external->tcp : "0");
+
+    if (write(fd2, buffer, strlen(buffer)) < 0) {
+      perror("write SAFE");
+    }
+
+    printf("NOTICE: No external yet, set this connection as external\n");
+
+
+
+    sprintf(buffer, "ENTRY %s %s\n", node->ip, node->tcp);
+    if (write(fd2, buffer, strlen(buffer)) < 0) {
+      perror("write ENTRY");
+    } else {
+      printf("NOTICE: ENTRY message sent to %s:%s\n", ip, tcp);
+    }
+
+    return;
   }
 
+  // Se já tiver externo
+  sprintf(buffer, "SAFE %s %s\n",
+          node->external->ip ? node->external->ip : "0.0.0.0",
+          node->external->tcp ? node->external->tcp : "0");
+
+  if (write(fd2, buffer, strlen(buffer)) < 0) {
+    perror("write SAFE");
+  }
+
+  printf("NOTICE: SAFE response sent to %s:%s\n", ip, tcp);
+
+
+
+  // enviar msg de salvaguarda por fd;
+  // return;
+
+
+
+/*
   // IMPORTANT: Send SAFE response BEFORE connecting back
   // This prevents the deadlock
-  char buffer[128];
+  //char buffer[128];
   sprintf(buffer, "SAFE %s %s\n",
           node->external->ip ? node->external->ip : "0.0.0.0",
           node->external->tcp ? node->external->tcp : "0");
@@ -171,19 +217,16 @@ void ndn_entry(Node *node, char *ip, char *tcp) {
   if ((n = connect(fd, res->ai_addr, res->ai_addrlen)) == -1) {
     fprintf(stderr, ERR "Failed to connect to the new internal\n");
     return;
-  }
+  }*/
 
-  freeaddrinfo(res);
+  /*freeaddrinfo(res);
 
   // Now store the connection details
   node->internal[node->internal_size]->fd = fd;
 
   if (node->external->fd == -1) // Update external if needed
-    node->external->fd = fd;
+    node->external->fd = fd;*/
 
 
-  // Increment internal size
-  node->internal_size++;
 
-  printf(OK "Added new internal %s:%s\n", ip, tcp);
 }

@@ -28,6 +28,7 @@ void ndn_help() {
          "\t(x)  exit - close the program\n");
 }
 
+
 void ndn_join(Node *node, u16 net) {
   if (node->in_net) {
     fprintf(stderr, ERR "Already in a network\n");
@@ -38,7 +39,7 @@ void ndn_join(Node *node, u16 net) {
   if (network->size == 0) {
     clean_nodelist(network);
     ndn_register(node, net);
-    node->in_net = true;
+    node->in_net = 1;
     printf(OK "Lone node, waiting for others\n");
     return;
   }
@@ -50,8 +51,7 @@ void ndn_join(Node *node, u16 net) {
 
   clean_nodelist(network);
 
-  printf(NOTICE "External %s:%s chosen, attempting connection\n", node_ip,
-         node_tcp);
+  printf(NOTICE "External %s:%s chosen, attempting connection\n", node_ip, node_tcp);
 
   // Create TCP socket
   int external_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -62,7 +62,7 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
 
-  // node setup
+  // Node setup
   struct addrinfo hints, *res;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET;
@@ -88,7 +88,6 @@ void ndn_join(Node *node, u16 net) {
   }
 
   printf(NOTICE "Connected to external %s:%s\n", node_ip, node_tcp);
-
   freeaddrinfo(res);
 
   node->external->ip = node_ip;
@@ -108,7 +107,7 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
 
-  // Read SAFE response
+  // Read response
   memset(buffer, 0, sizeof(buffer));
   if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) <= 0) {
     perror(ERR "read");
@@ -118,26 +117,38 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
 
-  // Process SAFE response
+  // Process received messages
   buffer[n] = '\0';
   printf(NOTICE "Received response: %s\n", buffer);
 
-  // Parse and handle SAFE
-  char ip[16], tcp[6];
-  if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) == 2) {
-    ndn_safe(node, ip, tcp);
-  } else {
-    fprintf(stderr, ERR "Invalid SAFE response: %s\n", buffer);
-    close(external_fd);
-    free(node_ip);
-    free(node_tcp);
-    return;
+  char *next_msg = strtok(buffer, "\n");
+  while (next_msg != NULL) {
+    if (strncmp(next_msg, "SAFE ", 5) == 0) {
+      char ip[16], tcp[6];
+      if (sscanf(next_msg, "SAFE %15s %5s", ip, tcp) == 2) {
+        ndn_safe(node, ip, tcp);
+      } else {
+        fprintf(stderr, ERR "Invalid SAFE message: %s\n", next_msg);
+      }
+    } else if (strncmp(next_msg, "ENTRY ", 6) == 0) {
+      char ip[16], tcp[6];
+      if (sscanf(next_msg, "ENTRY %15s %5s", ip, tcp) == 2) {
+        printf(NOTICE "Received ENTRY from %s:%s\n", ip, tcp);
+        // Handle ENTRY message accordingly
+      } else {
+        fprintf(stderr, ERR "Invalid ENTRY message: %s\n", next_msg);
+      }
+    } else {
+      fprintf(stderr, ERR "Unknown message: %s\n", next_msg);
+    }
+
+    next_msg = strtok(NULL, "\n");
   }
 
-  // Now register the node with the network
+  // Register the node with the network
   printf(OK "Registering node\n");
   ndn_register(node, net);
-  node->in_net = true;
+  node->in_net = 1;
   printf(OK "Joined network %03d\n", net);
 }
 
