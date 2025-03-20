@@ -158,7 +158,6 @@ void ndn_join(Node *node, u16 net) {
   printf(OK "Joined network %03d\n", net);
 }
 
-
 void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   if (node->in_net) {
     fprintf(stderr, ERR "Already in a network, `(l)eave` first\n");

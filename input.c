@@ -164,7 +164,6 @@ void ndn_run(Node *node) {
             } else {
               fprintf(stderr, ERR "Invalid ENTRY format\n");
             }
-
           }
 
           if (!memcmp(buffer, "SAFE", 4)) {
@@ -180,7 +179,6 @@ void ndn_run(Node *node) {
 
               return;
             }
-
           }
           // Add other command handlers here
 

@@ -22,7 +22,6 @@
 #define OK GREEN "OK\t" RESET
 #define NOTICE CYAN "INFO\t" RESET
 
-
 Node *init_node(usize cache_size, char *node_IP, char *node_TCP, char *regIP,
                 char *regUDP);
 
