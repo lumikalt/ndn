@@ -43,6 +43,11 @@ typedef struct {
 // Object type
 typedef char *Object;
 
+typedef struct {
+  int fd;
+  char *msg;
+} FDMsg;
+
 // The Node type (everything is here)
 typedef struct Node {
   ObjectList *objects;

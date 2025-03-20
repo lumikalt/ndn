@@ -22,6 +22,19 @@ void ndn_run(Node *node) {
   char buffer[128];
   fd_set master_fds, read_fds;
 
+  FDMsg *last_msgs = malloc(sizeof(FDMsg) * 100);
+  if (!last_msgs) {
+    perror(ERR "malloc");
+    exit(1);
+  }
+  usize last_msgs_size = 0;
+  usize last_msgs_capacity = 10;
+
+  for (usize i = 0; i < last_msgs_capacity; i++) {
+    last_msgs[i].fd = -1;
+    last_msgs[i].msg = NULL;
+  }
+
   // Initialize file descriptor sets for select()
   FD_ZERO(&master_fds);
   FD_SET(listener_fd, &master_fds);
@@ -162,8 +175,16 @@ void ndn_run(Node *node) {
           fflush(stdout);
         } else {
           buffer[bytes_read] = '\0';
-          buffer[strcspn(buffer, "\n")] = '\0';
-          printf(MAGENTA "\b\bfd_%02d" RESET "\t%s\n", i, buffer);
+          printf(MAGENTA "\b\bfd_%02d" RESET "\t```%s```\n", i, buffer);
+
+          if (last_msgs[i].msg == NULL) {
+            last_msgs[i].msg = strdup(buffer);
+            last_msgs[i].fd = i;
+            last_msgs_size++;
+          } else {
+            free(last_msgs[i].msg);
+            last_msgs[i].msg = strdup(buffer);
+          }
 
           // Process commands
           if (!memcmp(buffer, "ENTRY", 5)) {
