@@ -22,17 +22,15 @@ void ndn_run(Node *node) {
   char buffer[128];
   fd_set master_fds, read_fds;
 
-  FDMsg *last_msgs = malloc(sizeof(FDMsg) * 100);
+  char **last_msgs = malloc(sizeof(char *) * 100);
   if (!last_msgs) {
     perror(ERR "malloc");
     exit(1);
   }
-  usize last_msgs_size = 0;
-  usize last_msgs_capacity = 10;
+  usize last_msgs_capacity = 100;
 
   for (usize i = 0; i < last_msgs_capacity; i++) {
-    last_msgs[i].fd = -1;
-    last_msgs[i].msg = NULL;
+    last_msgs[i] = NULL;
   }
 
   // Initialize file descriptor sets for select()
@@ -128,13 +126,14 @@ void ndn_run(Node *node) {
             node->external->tcp = NULL;
             node->external->fd = -1;
 
-            if (node->safeguard->fd != -1) {
-              close(node->safeguard->fd);
+            if (node->safeguard->fd == -1) { // if we're our own safeguard
               free(node->safeguard->ip);
               free(node->safeguard->tcp);
               node->safeguard->ip = NULL;
               node->safeguard->tcp = NULL;
-              node->safeguard->fd = -1;
+              // do something else?
+            } else {
+              // Send ENTRY to safeguard
             }
           }
 
@@ -179,10 +178,8 @@ void ndn_run(Node *node) {
           printf("\b\b" MAGENTA "fd_%02d" RESET "\t%s\n", i, escaped);
           free(escaped);
 
-          if (last_msgs[i].msg == NULL) {
-            last_msgs[i].msg = strdup(buffer);
-            last_msgs[i].fd = i;
-            last_msgs_size++;
+          if (last_msgs[i] == NULL) {
+            last_msgs[i] = strdup(buffer);
           }
 
           // Process commands
@@ -226,8 +223,8 @@ void ndn_run(Node *node) {
   printf(NOTICE "Exiting main loop\n");
 
   // Clean the last messages
-  for (usize i = 0; i < last_msgs_size; i++) {
-    free(last_msgs[i].msg);
+  for (usize i = 0; i < last_msgs_capacity; i++) {
+    free(last_msgs[i]);
   }
   free(last_msgs);
 
