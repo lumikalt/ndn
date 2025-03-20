@@ -2,6 +2,7 @@
 #include "commands.h"
 #include "protocols/tcp.h"
 #include "protocols/udp.h"
+#include "types.h"
 #include "util.h"
 
 #include <arpa/inet.h>
@@ -127,7 +128,8 @@ void ndn_run(Node *node) {
           // Check all internals
           for (usize j = 0; j < node->internal_index; j++) {
             if (node->internal[j] && node->internal[j]->fd == i) {
-              printf(NOTICE "Internal node %zu disconnected\n", j);
+              printf(NOTICE "Internal %s:%s disconnected\n",
+                     node->internal[j]->ip, node->internal[j]->tcp);
               free(node->internal[j]->ip);
               free(node->internal[j]->tcp);
               free(node->internal[j]);
@@ -174,18 +176,12 @@ void ndn_run(Node *node) {
             }
           }
 
-          if (!memcmp(buffer, "SAFE", 4)) {
+          if (!memcmp(buffer, "SAFE ", 5)) {
             char ip[16], tcp[6];
-            if (strncmp(buffer, "SAFE ", 5) == 0) {
-              if (sscanf(buffer + 5, "%15s %5s", ip, tcp) == 2) {
-                ndn_safe(node, ip, tcp);
-              } else {
-                fprintf(stderr, ERR "Invalid SAFE format: %s\n", buffer);
-              }
+            if (sscanf(buffer + 5, "%15s %5s", ip, tcp) == 2) {
+              ndn_safe(node, ip, tcp);
             } else {
-              fprintf(stderr, ERR "Unexpected response: %s\n", buffer);
-
-              return;
+              fprintf(stderr, ERR "Invalid SAFE format: %s\n", buffer);
             }
           }
           // Add other command handlers here
