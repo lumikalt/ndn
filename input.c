@@ -62,7 +62,6 @@ void ndn_run(Node *node) {
         // Print prompt again if not exiting
         if (!node->exit) {
           printf(YELLOW "> ");
-          fflush(stdout);
         }
       }
     }
@@ -80,8 +79,8 @@ void ndn_run(Node *node) {
         inet_ntop(AF_INET, &(client_addr->sin_addr), client_ip,
                   INET_ADDRSTRLEN);
 
-        printf("\n" OK "New connection established: FD %d from %s:%d\n", new_fd,
-               client_ip, ntohs(client_addr->sin_port));
+        printf("\b\b" MAGENTA "df_%02d" RESET "\t<new connection %s:%05d>\n",
+               new_fd, client_ip, ntohs(client_addr->sin_port));
 
         FD_SET(new_fd, &master_fds);
         if (new_fd > max_fd) {
@@ -98,18 +97,17 @@ void ndn_run(Node *node) {
       if (i != listener_fd && i != STDIN_FILENO && FD_ISSET(i, &read_fds)) {
         memset(buffer, 0, sizeof(buffer));
         int bytes_read = read(i, buffer, sizeof(buffer) - 1);
-        printf("%d: %s\n\n", bytes_read, buffer);
 
         if (bytes_read <= 0) {
           if (bytes_read == 0) {
-            printf("\n" NOTICE "Client on FD %d disconnected\n", i);
+            printf("\b\b" MAGENTA "fd_%02d" RESET "\t<disconnected>\n", i);
           } else {
             perror(ERR "read");
           }
 
           // Update node structures when a client disconnects
           if (node->external && node->external->fd == i) {
-            printf(NOTICE "External node disconnected\n");
+            printf(NOTICE "External disconnected\n");
             free(node->external->ip);
             free(node->external->tcp);
             node->external->ip = NULL;
@@ -118,7 +116,7 @@ void ndn_run(Node *node) {
           }
 
           // Check all internals
-          for (usize j = 0; j < node->internal_size; j++) {
+          for (usize j = 0; j < node->internal_index; j++) {
             if (node->internal[j] && node->internal[j]->fd == i) {
               printf(NOTICE "Internal node %zu disconnected\n", j);
               free(node->internal[j]->ip);
@@ -126,11 +124,11 @@ void ndn_run(Node *node) {
               free(node->internal[j]);
 
               // Shift remaining nodes down to fill the gap
-              for (usize k = j; k < node->internal_size - 1; k++) {
+              for (usize k = j; k < node->internal_index - 1; k++) {
                 node->internal[k] = node->internal[k + 1];
               }
-              node->internal_size--;
-              node->internal[node->internal_size] = NULL;
+              node->internal_index--;
+              node->internal[node->internal_index] = NULL;
               break;
             }
           }
@@ -153,7 +151,8 @@ void ndn_run(Node *node) {
           fflush(stdout);
         } else {
           buffer[bytes_read] = '\0';
-          printf("\n" NOTICE "Received message on FD %d: %s\n", i, buffer);
+          buffer[strcspn(buffer, "\n")] = '\0';
+          printf(MAGENTA "\b\bfd_%02d" RESET "\t%s\n", i, buffer);
 
           // Process commands
           if (!memcmp(buffer, "ENTRY", 5)) {

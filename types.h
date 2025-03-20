@@ -53,7 +53,7 @@ typedef struct Node {
   AdjacentNode *safeguard;
   AdjacentNode *external;
   AdjacentNode **internal;
-  usize internal_size;
+  usize internal_index;
   usize internal_capacity;
 
   Server *server;

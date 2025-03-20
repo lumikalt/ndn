@@ -52,7 +52,7 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
     perror(ERR "calloc");
     exit(1);
   }
-  node->internal_size = 0;
+  node->internal_index = 0;
   node->internal_capacity = 10;
 
   // create UDP client connection to the server
@@ -166,7 +166,7 @@ void clean_node(Node *node) {
     free(node->external);
   }
   if (node->internal) {
-    for (usize i = 0; i < node->internal_size; i++) {
+    for (usize i = 0; i < node->internal_index; i++) {
       if (node->internal[i]) {
         if (node->internal[i]->ip) {
           free(node->internal[i]->ip);
@@ -241,7 +241,7 @@ void clean_nodelist(NodeList *nodes) {
 }
 
 void grow_internal(Node *node) {
-  if (node->internal_size == node->internal_capacity) {
+  if (node->internal_index == node->internal_capacity) {
     node->internal_capacity *= 2;
     node->internal = realloc(node->internal,
                              node->internal_capacity * sizeof(AdjacentNode *));

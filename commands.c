@@ -290,7 +290,7 @@ void ndn_show_topology(Node *node) {
   printf(RESET "\tExternal  -> %s:%s\n", node->external->ip,
          node->external->tcp);
   printf(RESET "\tInternals:\n");
-  for (usize i = 0; i < node->internal_size; i++) {
+  for (usize i = 0; i < node->internal_index; i++) {
     printf(RESET "\t->%s:%s\n", node->internal[i]->ip, node->internal[i]->tcp);
   }
 }
