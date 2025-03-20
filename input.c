@@ -113,6 +113,15 @@ void ndn_run(Node *node) {
             node->external->ip = NULL;
             node->external->tcp = NULL;
             node->external->fd = -1;
+
+            if (node->safeguard->fd != -1) {
+              close(node->safeguard->fd);
+              free(node->safeguard->ip);
+              free(node->safeguard->tcp);
+              node->safeguard->ip = NULL;
+              node->safeguard->tcp = NULL;
+              node->safeguard->fd = -1;
+            }
           }
 
           // Check all internals
