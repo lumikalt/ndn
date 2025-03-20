@@ -155,6 +155,7 @@ void ndn_join(Node *node, u16 net) {
   printf(OK "Registering node\n");
   ndn_register(node, net);
   node->in_net = true;
+  node->net = net;
   printf(OK "Joined network %03d\n", net);
 }
 

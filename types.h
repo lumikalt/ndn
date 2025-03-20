@@ -62,6 +62,7 @@ typedef struct Node {
   char *ip;
   char *tcp;
   bool in_net;
+  usize net;
 
   // TCP listener
   int listener_fd;
