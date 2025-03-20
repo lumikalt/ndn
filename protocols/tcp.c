@@ -6,7 +6,6 @@
 #include <string.h>
 #include <unistd.h>
 
-// Change function signature
 void ndn_safe(Node *node, char *ip, char *tcp) {
   // Create and connect the TCP socket to ip:tcp
   int fd, errcode;
@@ -68,10 +67,6 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
 }
 
 void ndn_entry(Node *node, char *ip, char *tcp, int fd2) {
-  // Create and connect the TCP socket to ip:tcp
-  int fd, errcode;
-  ssize_t n;
-  struct addrinfo hints, *res;
   char buffer[128];
 
   grow_internal(node);
@@ -125,10 +120,10 @@ void ndn_entry(Node *node, char *ip, char *tcp, int fd2) {
           node->external->tcp ? node->external->tcp : "0");
 
   if (write(fd2, buffer, strlen(buffer)) < 0) {
-    perror("write SAFE");
+    perror(ERR "writing SAFE");
   }
 
-  printf("NOTICE: SAFE response sent to %s:%s\n", ip, tcp);
+  printf(NOTICE "Sent safeguard\n");
 
   // enviar msg de salvaguarda por fd;
   // return;

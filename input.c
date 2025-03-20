@@ -47,7 +47,6 @@ void ndn_run(Node *node) {
 
   printf(YELLOW "> ");
   fflush(stdout);
-
   while (!node->exit) {
     // Copy master set to temporary set for select()
     read_fds = master_fds;
@@ -76,6 +75,7 @@ void ndn_run(Node *node) {
         // Print prompt again if not exiting
         if (!node->exit) {
           printf(YELLOW "> ");
+          fflush(stdout);
         }
       }
     }
@@ -225,6 +225,12 @@ void ndn_run(Node *node) {
   }
 
   printf(NOTICE "Exiting main loop\n");
+
+  // Clean the last messages
+  for (usize i = 0; i < last_msgs_size; i++) {
+    free(last_msgs[i].msg);
+  }
+  free(last_msgs);
 
   // Leave the network and send all internals the leave message
   ndn_leave(node);
