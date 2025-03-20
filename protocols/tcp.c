@@ -66,46 +66,41 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
   return;
 }
 
-void ndn_entry(Node *node, char *ip, char *tcp, int fd2) {
+void ndn_entry(Node *node, char *ip, char *tcp, int enteringfd) {
   char buffer[128];
 
   grow_internal(node);
-
-  // Allocate a new AdjacentNode for this connection
   node->internal[node->internal_index] = malloc(sizeof(AdjacentNode));
   if (!node->internal[node->internal_index]) {
     fprintf(stderr, ERR "Failed to allocate internal node\n");
     return;
   }
 
-  // Store IP and TCP
   node->internal[node->internal_index]->ip = strdup(ip);
   node->internal[node->internal_index]->tcp = strdup(tcp);
-  node->internal[node->internal_index]->fd = fd2; // Will set this later
-
-  // Increment internal size
+  node->internal[node->internal_index]->fd = enteringfd;
   node->internal_index++;
 
   printf(OK "Added new internal %s:%s\n", ip, tcp);
 
-  // Check if we need to update external
-  if (node->external->fd == -1) { // Se não tiver externo
+  // Check if we need an external
+  if (node->external->fd == -1) {
+    printf(NOTICE "No external yet, choosing this connection\n");
+
     node->external->ip = strdup(ip);
     node->external->tcp = strdup(tcp);
-    node->external->fd = fd2;
+    node->external->fd = enteringfd;
 
     sprintf(buffer, "SAFE %s %s\n",
             node->external->ip ? node->external->ip : "0.0.0.0",
             node->external->tcp ? node->external->tcp : "0");
 
-    if (write(fd2, buffer, strlen(buffer)) < 0) {
+    if (write(enteringfd, buffer, strlen(buffer)) < 0) {
       perror(ERR "writing SAFE");
     }
 
-    printf(NOTICE "No external yet, choosing this connection\n");
-
     sprintf(buffer, "ENTRY %s %s\n", node->ip, node->tcp);
-    if (write(fd2, buffer, strlen(buffer)) < 0) {
+    if (write(enteringfd, buffer, strlen(buffer)) < 0) {
       perror(ERR "writing ENTRY");
     } else {
       printf(NOTICE "sending it an ENTRY message\n");
@@ -119,7 +114,7 @@ void ndn_entry(Node *node, char *ip, char *tcp, int fd2) {
           node->external->ip ? node->external->ip : "0.0.0.0",
           node->external->tcp ? node->external->tcp : "0");
 
-  if (write(fd2, buffer, strlen(buffer)) < 0) {
+  if (write(enteringfd, buffer, strlen(buffer)) < 0) {
     perror(ERR "writing SAFE");
   }
 
