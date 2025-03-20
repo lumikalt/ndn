@@ -310,7 +310,7 @@ void ndn_show_names(Node *node) {
 }
 
 void ndn_show_interest_table(Node *node) {
-  printf(NOTICE "Interest:\n");
+  printf(NOTICE "Interests:\n");
   list_print_interests(node->interests);
 }
 

@@ -79,7 +79,7 @@ void ndn_run(Node *node) {
         inet_ntop(AF_INET, &(client_addr->sin_addr), client_ip,
                   INET_ADDRSTRLEN);
 
-        printf("\b\b" MAGENTA "df_%02d" RESET "\t<new connection %s:%05d>\n",
+        printf("\b\b" MAGENTA "fd_%02d" RESET "\t<new connection %s:%05d>\n",
                new_fd, client_ip, ntohs(client_addr->sin_port));
 
         FD_SET(new_fd, &master_fds);
