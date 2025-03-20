@@ -324,6 +324,14 @@ void process_user_input(Node *node, char *input) {
   }
   //----------
 
+  //---leave---
+  if ((strcmp(input, "leave") == 0) || (strcmp(input, "l") == 0)) {
+    printf(OK "Terminating\n");
+    ndn_leave(node);
+    return;
+  }
+  //----------
+
   //---help---
   if ((strcmp(input, "help") == 0) || (strcmp(input, "h") == 0)) {
     ndn_help();

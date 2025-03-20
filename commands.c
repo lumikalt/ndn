@@ -320,6 +320,7 @@ void ndn_leave(Node *node) {
     return;
   }
 
+  ndn_unregister(node);
   node->in_net = false;
 
   printf(NOTICE "Leaving network\n");

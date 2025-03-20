@@ -139,12 +139,12 @@ void ndn_register(Node *node, u16 net) {
 
 /// Unregister the node from the network, and check if the server accepted the
 /// node exit.
-void ndn_unregister(Node *node, u16 net) {
+void ndn_unregister(Node *node) {
   ssize_t n;
   char buffer[256];
   Server *s = node->server;
 
-  sprintf(buffer, "UNREG %03d %s %s", net, node->ip, node->tcp);
+  sprintf(buffer, "UNREG %03zu %s %s", node->net, node->ip, node->tcp);
 
   if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0) {
@@ -152,7 +152,7 @@ void ndn_unregister(Node *node, u16 net) {
     return;
   }
 
-  printf(NOTICE "Requested unregistration from net %03d\n", net);
+  printf(NOTICE "Requested unregistration from net %03zu\n", node->net);
 
   /* Wait for the OK */
 
@@ -164,8 +164,8 @@ void ndn_unregister(Node *node, u16 net) {
     fprintf(stderr, ERR "No response from the server\n");
     return;
   } else if (strncmp(response, ok, 8) != 0) {
-    fprintf(stderr, ERR "Server refused the connection to net %03d\n", net);
+    fprintf(stderr, ERR "Server refused the connection to net %03zu\n",node->net);
   }
 
-  printf(OK "Successfully left network %d\n", net);
+  printf(OK "Successfully left network %zu\n", node->net);
 }
