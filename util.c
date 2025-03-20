@@ -132,6 +132,8 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   return node;
 }
 
+/* clean memory */
+
 void clean_node(Node *node) {
   list_destroy(node->objects);
   list_destroy(node->interests);
@@ -196,12 +198,47 @@ void clean_node(Node *node) {
   free(node);
 }
 
+void clean_nodelist(NodeList *nodes) {
+  for (usize i = 0; i < nodes->size; i++) {
+    free(nodes->ip[i]);
+    free(nodes->tcp[i]);
+  }
+  free(nodes->ip);
+  free(nodes->tcp);
+  free(nodes);
+}
+
+/* string utils */
+
 usize str_char_count(const char *s, char c) {
   usize count = 0;
   for (usize i = 0; s[i]; s[i] == c ? count++, i++ : i++)
     ;
   return count;
 }
+
+char *str_escape(const char *s) {
+  char *escaped = malloc(strlen(s) * 2 + 1);
+  if (!escaped) {
+    perror(ERR "malloc");
+    exit(1);
+  }
+
+  usize j = 0;
+  for (usize i = 0; s[i]; i++) {
+    if (s[i] == '\n') {
+      escaped[j++] = '\\';
+      escaped[j++] = 'n';
+    } else {
+      escaped[j++] = s[i];
+    }
+  }
+  escaped[j] = '\0';
+
+  return escaped;
+}
+
+/* validity checks */
 
 int is_valid_net(char *net) {
   return strlen(net) == 3 && isdigit(net[0]) && isdigit(net[1]) &&
@@ -230,15 +267,7 @@ int is_valid_name(char *name) {
   return 1;
 }
 
-void clean_nodelist(NodeList *nodes) {
-  for (usize i = 0; i < nodes->size; i++) {
-    free(nodes->ip[i]);
-    free(nodes->tcp[i]);
-  }
-  free(nodes->ip);
-  free(nodes->tcp);
-  free(nodes);
-}
+/* */
 
 void grow_internal(Node *node) {
   if (node->internal_index == node->internal_capacity) {

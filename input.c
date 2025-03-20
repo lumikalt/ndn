@@ -175,15 +175,14 @@ void ndn_run(Node *node) {
           fflush(stdout);
         } else {
           buffer[bytes_read] = '\0';
-          printf(MAGENTA "\b\bfd_%02d" RESET "\t```%s```\n", i, buffer);
+          char *escaped = str_escape(buffer);
+          printf("\b\b" MAGENTA "fd_%02d" RESET "\t%s\n", i, escaped);
+          free(escaped);
 
           if (last_msgs[i].msg == NULL) {
             last_msgs[i].msg = strdup(buffer);
             last_msgs[i].fd = i;
             last_msgs_size++;
-          } else {
-            free(last_msgs[i].msg);
-            last_msgs[i].msg = strdup(buffer);
           }
 
           // Process commands

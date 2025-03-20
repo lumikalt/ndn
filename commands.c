@@ -117,7 +117,9 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
   buffer[n] = '\0';
-  printf(NOTICE "Received response: %s\n", buffer);
+  char *escaped = str_escape(buffer);
+  printf(MAGENTA "fd_%02d" RESET "\t%s\n", external_fd, escaped);
+  free(escaped);
 
   // Process each message separated by newline
   char *next_msg = strtok(buffer, "\n");
@@ -232,7 +234,9 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
 
   // Process SAFE response
   buffer[n] = '\0';
-  printf(NOTICE "Received response: %s\n", buffer);
+  char *escaped = str_escape(buffer);
+  printf(MAGENTA "fd_%02d" RESET "\t%s\n", external_fd, escaped);
+  free(escaped);
 
   // Parse and handle SAFE
   char ip[16], tcp[6];

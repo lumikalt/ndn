@@ -103,7 +103,7 @@ void ndn_entry(Node *node, char *ip, char *tcp, int enteringfd) {
     if (write(enteringfd, buffer, strlen(buffer)) < 0) {
       perror(ERR "writing ENTRY");
     } else {
-      printf(NOTICE "sending it an ENTRY message\n");
+      printf(NOTICE "Sending it an ENTRY message\n");
     }
 
     return;
