@@ -62,19 +62,6 @@ void ndn_safe(Node *node, char *ip, char *tcp) {
 
   node->safeguard->fd = fd;
 
-  printf(NOTICE "Also adding as internal\n");
-
-  grow_internal(node);
-  node->internal[node->internal_size] = malloc(sizeof(AdjacentNode));
-  if (!node->internal[node->internal_size]) {
-    fprintf(stderr, ERR "Failed to allocate internal node\n");
-    return;
-  }
-
-  node->internal[node->internal_size]->ip = strdup(ip);
-  node->internal[node->internal_size]->tcp = strdup(tcp);
-  node->internal[node->internal_size]->fd = fd;
-
   printf(OK "Connected to safeguard\n");
 
   return;
@@ -125,16 +112,16 @@ void ndn_entry(Node *node, char *ip, char *tcp, int fd2) {
             node->external->tcp ? node->external->tcp : "0");
 
     if (write(fd2, buffer, strlen(buffer)) < 0) {
-      perror("write SAFE");
+      perror(ERR "writing SAFE");
     }
 
-    printf("NOTICE: No external yet, set this connection as external\n");
+    printf(NOTICE "No external yet, choosing this connection\n");
 
     sprintf(buffer, "ENTRY %s %s\n", node->ip, node->tcp);
     if (write(fd2, buffer, strlen(buffer)) < 0) {
-      perror("write ENTRY");
+      perror(ERR "writing ENTRY");
     } else {
-      printf("NOTICE: ENTRY message sent to %s:%s\n", ip, tcp);
+      printf(NOTICE "sending it an ENTRY message\n");
     }
 
     return;
