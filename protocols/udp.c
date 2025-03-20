@@ -164,7 +164,8 @@ void ndn_unregister(Node *node) {
     fprintf(stderr, ERR "No response from the server\n");
     return;
   } else if (strncmp(response, ok, 8) != 0) {
-    fprintf(stderr, ERR "Server refused the connection to net %03zu\n",node->net);
+    fprintf(stderr, ERR "Server refused the connection to net %03zu\n",
+            node->net);
   }
 
   printf(OK "Successfully left network %zu\n", node->net);
