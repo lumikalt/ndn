@@ -132,6 +132,9 @@ void ndn_run(Node *node) {
         if (bytes_read <= 0) {
           if (bytes_read == 0) {
             printf("\b\b" MAGENTA "fd_%02d" RESET "\t<disconnected>\n", i);
+
+            free(last_msgs[i]);
+            last_msgs[i] = NULL;
           } else {
             perror(ERR "read");
           }
@@ -197,30 +200,93 @@ void ndn_run(Node *node) {
           printf("\b\b" MAGENTA "fd_%02d" RESET "\t%s\n", i, escaped);
           free(escaped);
 
-          if (last_msgs[i] == NULL) {
-            last_msgs[i] = strdup(buffer);
+          if (i >= last_msgs_capacity) {
+            usize new_capacity = i * 2;
+            char **new_last_msgs =
+                realloc(last_msgs, new_capacity * sizeof(char *));
+            if (!new_last_msgs) {
+              perror(ERR "realloc");
+              exit(1);
+            }
+            last_msgs = new_last_msgs;
+            for (usize j = last_msgs_capacity; j < new_capacity; j++) {
+              last_msgs[j] = NULL;
+            }
+            last_msgs_capacity = new_capacity;
           }
 
-          // Process commands
-          if (!memcmp(buffer, "ENTRY", 5)) {
-            char ip[16], tcp[6];
-            if (sscanf(buffer, "ENTRY %15s %5s", ip, tcp) == 2) {
-              printf(NOTICE "Processing ENTRY from %s:%s\n", ip, tcp);
-              ndn_entry(node, ip, tcp, i);
-            } else {
-              fprintf(stderr, ERR "Invalid ENTRY format\n");
+          // Step 1: Combine existing buffer with new data
+          char *combined_buffer;
+          if (last_msgs[i] != NULL) {
+            // We have a previous incomplete message, append new data
+            combined_buffer = malloc(strlen(last_msgs[i]) + bytes_read + 1);
+            if (!combined_buffer) {
+              perror(ERR "malloc");
+              exit(1);
+            }
+            strcpy(combined_buffer, last_msgs[i]);
+            strcat(combined_buffer, buffer);
+            free(last_msgs[i]);
+          } else {
+            // No previous data, just use the current buffer
+            combined_buffer = strdup(buffer);
+            if (!combined_buffer) {
+              perror(ERR "strdup");
+              exit(1);
             }
           }
 
-          if (!memcmp(buffer, "SAFE ", 5)) {
-            char ip[16], tcp[6];
-            if (sscanf(buffer + 5, "%15s %5s", ip, tcp) == 2) {
-              ndn_safe(node, ip, tcp);
-            } else {
-              fprintf(stderr, ERR "Invalid SAFE format: %s\n", buffer);
+          // Step 2: Process all complete messages
+          char *search_start = combined_buffer;
+          char *next_newline;
+          bool processed_command = false;
+
+          while ((next_newline = strchr(search_start, '\n')) != NULL) {
+            // Found a complete message
+            *next_newline = '\0'; // Replace newline with null terminator
+
+            printf(NOTICE "Processing complete message: %s\n", search_start);
+
+            // Process based on command type
+            if (!memcmp(search_start, "ENTRY", 5)) {
+              char ip[16], tcp[6];
+              if (sscanf(search_start, "ENTRY %15s %5s", ip, tcp) == 2) {
+                printf(NOTICE "Processing ENTRY from %s:%s\n", ip, tcp);
+                ndn_entry(node, ip, tcp, i);
+                processed_command = true;
+              } else {
+                fprintf(stderr, ERR "Invalid ENTRY format\n");
+              }
+            } else if (!memcmp(search_start, "SAFE", 4)) {
+              char ip[16], tcp[6];
+              if (sscanf(search_start + 5, "%15s %5s", ip, tcp) == 2) {
+                ndn_safe(node, ip, tcp);
+                processed_command = true;
+              } else {
+                fprintf(stderr, ERR "Invalid SAFE format: %s\n", search_start);
+              }
             }
+            // Add other command handlers here
+
+            // Move to the character after the newline
+            search_start = next_newline + 1;
           }
-          // Add other command handlers here
+
+          // Step 3: Store any remaining incomplete message
+          if (*search_start != '\0') {
+            // We have an incomplete message
+            last_msgs[i] = strdup(search_start);
+            printf(NOTICE "Stored incomplete message: %s\n", search_start);
+          } else {
+            // No incomplete message
+            last_msgs[i] = NULL;
+          }
+
+          free(combined_buffer);
+
+          if (!processed_command) {
+            printf(NOTICE "No complete commands found in message\n");
+          }
 
           printf(YELLOW "> ");
           fflush(stdout);
