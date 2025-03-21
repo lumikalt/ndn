@@ -6,13 +6,13 @@
 #include "util.h"
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
 #include <unistd.h>
-#include <fcntl.h>
 
 // Unified function that handles both network I/O and user input
 void ndn_run(Node *node) {
@@ -180,7 +180,7 @@ void ndn_run(Node *node) {
 
           // Close the socket and remove from fd set
           close(i);
-          //FD_CLR(i, &master_fds);
+          // FD_CLR(i, &master_fds);
 
           // Recalculate max_fd if needed
           if (i == max_fd) {
