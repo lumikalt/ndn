@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/select.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 // Unified function that handles both network I/O and user input
 void ndn_run(Node *node) {
@@ -46,6 +47,24 @@ void ndn_run(Node *node) {
   printf(YELLOW "> ");
   fflush(stdout);
   while (!node->exit) {
+    // Clean up any invalid file descriptors from master_fds.
+    for (int i = 0; i < FD_SETSIZE; i++) {
+      if (FD_ISSET(i, &master_fds)) {
+        // Check if the file descriptor is still valid.
+        if (fcntl(i, F_GETFD) == -1) {
+          FD_CLR(i, &master_fds);
+        }
+      }
+    }
+
+    // Recalculate max_fd based on the current master_fds.
+    max_fd = (listener_fd > STDIN_FILENO ? listener_fd : STDIN_FILENO);
+    for (int i = 0; i < FD_SETSIZE; i++) {
+      if (FD_ISSET(i, &master_fds) && i > max_fd) {
+        max_fd = i;
+      }
+    }
+
     // Copy master set to temporary set for select()
     read_fds = master_fds;
 
@@ -158,7 +177,7 @@ void ndn_run(Node *node) {
 
           // Close the socket and remove from fd set
           close(i);
-          FD_CLR(i, &master_fds);
+          //FD_CLR(i, &master_fds);
 
           // Recalculate max_fd if needed
           if (i == max_fd) {
