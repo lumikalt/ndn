@@ -212,6 +212,48 @@ void ndn_object(Node *node, Object object) {
 
   printf(NOTICE "Processing object\n");
 
+  // Check if we have an interest in this object
+  interest = list_find(node->interests, object);
+  if (interest == NULL) {
+    printf(NOTICE "Not interested in this object\n");
+    return;
+  }
+
+  bool external_interest = true;
+
+  // We have an interest in this object
+  for (usize i = 0; i < interest->by_size; i++) {
+    if (interest->by[i] == -1) {
+      printf(OK "Object '%s' found for our own request\n", object);
+
+      list_add(node->objects, object, 0, 0);
+
+      external_interest = false;
+    } else {
+      printf(NOTICE "Sending fd_%02d this object... ", interest->by[i]);
+
+      sprintf(buffer, "OBJECT %s\n", object);
+      if (write(interest->by[i], buffer, strlen(buffer)) < 0) {
+        perror("\n" ERR "writing OBJECT");
+      }
+
+      printf("sent\n");
+    }
+  }
+
+  list_remove(node->interests, object);
+
+  if (external_interest) { // all interests aren't our own, must cache
+    cache_add(node, object);
+    printf(OK "Cached object\n");
+  }
+}
+
+void ndn_noobject(Node *node, Object object) {
+  ObjectList *interest;
+
+  printf(NOTICE "Processing noobject\n");
+
   // Find all matching interests
   interest = list_find(node->interests, object);
   if (interest == NULL) {
