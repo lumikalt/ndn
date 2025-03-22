@@ -27,20 +27,25 @@ void list_add(ObjectList *list, Object object, int by, int to) {
   ObjectList *any = list_find(list, object);
   if (any != NULL) {
     any->by_size++;
-    any->by = realloc(any->by, any->by_size * sizeof(int));
-    if (!any->by) {
-      perror(ERR "realloc");
-      exit(1);
-    }
-    any->by[any->by_size - 1] = by;
 
-    any->to_size++;
-    any->to = realloc(any->to, any->to_size * sizeof(int));
-    if (!any->to) {
-      perror(ERR "realloc");
-      exit(1);
+    if (by != 0) {
+      any->by = realloc(any->by, any->by_size * sizeof(int));
+      if (!any->by) {
+        perror(ERR "realloc");
+        exit(1);
+      }
+      any->by[any->by_size - 1] = by;
     }
-    any->to[any->to_size - 1] = to;
+
+    if (to == 0) {
+      any->to_size++;
+      any->to = realloc(any->to, any->to_size * sizeof(int));
+      if (!any->to) {
+        perror(ERR "realloc");
+        exit(1);
+      }
+      any->to[any->to_size - 1] = to;
+    }
 
     return;
   }
