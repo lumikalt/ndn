@@ -257,7 +257,11 @@ void ndn_run(Node *node) {
               } else {
                 fprintf(stderr, ERR "Invalid ENTRY format\n");
               }
-            } else if (!memcmp(search_start, "SAFE", 4)) {
+            }
+
+            // ------------------------------
+
+            else if (!memcmp(search_start, "SAFE", 4)) {
               char ip[16], tcp[6];
               if (sscanf(search_start + 5, "%15s %5s", ip, tcp) == 2) {
                 ndn_safe(node, ip, tcp);
@@ -266,7 +270,53 @@ void ndn_run(Node *node) {
                 fprintf(stderr, ERR "Invalid SAFE format: %s\n", search_start);
               }
             }
+
+            // ------------------------------
+
+            else if (!memcmp(search_start, "INTEREST", 8)) {
+              char object[101];
+              if (sscanf(search_start, "INTEREST %100s", object) == 1) {
+                printf(NOTICE "Processing INTEREST for object %s\n", object);
+                ndn_interest(node, object, i);
+                processed_command = true;
+              } else {
+                fprintf(stderr, ERR "Invalid INTEREST format\n");
+              }
+            }
+
+            // ------------------------------
+
+            else if (!memcmp(search_start, "OBJECT", 6)) {
+              char object[101];
+              if (sscanf(search_start, "OBJECT %100s", object) == 1) {
+                printf(NOTICE "Processing OBJECT for object %s\n", object);
+                ndn_object(node, object);
+                processed_command = true;
+              } else {
+                fprintf(stderr, ERR "Invalid OBJECT format\n");
+              }
+            }
+
+            // ------------------------------
+
+            else if (!memcmp(search_start, "NOOBJECT", 8)) {
+              char object[101];
+              if (sscanf(search_start, "NOOBJECT %100s", object) == 1) {
+                printf(NOTICE "Processing NOOBJECT for object %s\n", object);
+                ndn_noobject(node, object);
+                processed_command = true;
+              } else {
+                fprintf(stderr, ERR "Invalid NOOBJECT format\n");
+              }
+            }
+
+            // ------------------------------
+
             // Add other command handlers here
+
+            else {
+              fprintf(stderr, ERR "Unknown command: %s\n", search_start);
+            }
 
             // Move to the character after the newline
             search_start = next_newline + 1;
