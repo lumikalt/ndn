@@ -3,6 +3,7 @@
 
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,13 +15,33 @@ ObjectList *list_create() {
     exit(1);
   }
   list->self = NULL;
-  list->fd = -1;
+  list->by = NULL;
+  list->by_size = 0;
+  list->to = NULL;
+  list->to_size = 0;
   list->next = NULL;
   return list;
 }
 
-void list_add(ObjectList *list, Object object, int fd) {
-  if (list_find(list, object) != NULL) {
+void list_add(ObjectList *list, Object object, int by, int to) {
+  ObjectList *any = list_find(list, object);
+  if (any != NULL) {
+    any->by_size++;
+    any->by = realloc(any->by, any->by_size * sizeof(int));
+    if (!any->by) {
+      perror(ERR "realloc");
+      exit(1);
+    }
+    any->by[any->by_size - 1] = by;
+
+    any->to_size++;
+    any->to = realloc(any->to, any->to_size * sizeof(int));
+    if (!any->to) {
+      perror(ERR "realloc");
+      exit(1);
+    }
+    any->to[any->to_size - 1] = to;
+
     return;
   }
 
@@ -35,7 +56,12 @@ void list_add(ObjectList *list, Object object, int fd) {
     exit(1);
   }
   new_node->self = object;
-  new_node->fd = fd;
+  new_node->by = malloc(sizeof(int));
+  new_node->by[0] = by;
+  new_node->by_size = 1;
+  new_node->to = malloc(sizeof(int));
+  new_node->to[0] = to;
+  new_node->to_size = 1;
   new_node->next = NULL;
   current->next = new_node;
 }
@@ -46,25 +72,6 @@ void list_remove(ObjectList *list, Object object) {
 
   while (current != NULL) {
     if (current->self == object) {
-      if (prev == NULL) {
-        list = current->next;
-      } else {
-        prev->next = current->next;
-      }
-      free(current);
-      return;
-    }
-    prev = current;
-    current = current->next;
-  }
-}
-
-void list_remove_connection(ObjectList *list, int fd) {
-  ObjectList *current = list;
-  ObjectList *prev = NULL;
-
-  while (current != NULL) {
-    if (current->fd == fd) {
       if (prev == NULL) {
         list = current->next;
       } else {
@@ -98,57 +105,34 @@ void list_print(ObjectList *list) {
 void list_print_interests(int externalfd, ObjectList *list) {
   ObjectList *current = list;
   while (current != NULL) {
-    printf(RESET "\t> `%s` => fd_%02d%s\n", current->self, current->fd,
-           current->fd == externalfd ? " (external)"
-           : current->fd == -1       ? " (self)"
-                                     : "");
+    printf(RESET "\t- `%s` [requested by / requested from]\n", current->self);
+
+    for (usize i = 0; i < current->by_size; i++) {
+      printf("\t  -> fd_%02d%s", current->by[i],
+             current->by[i] == externalfd ? " (external)"
+             : current->by[i] == -1       ? " (self)"
+                                          : "");
+    }
+
+    for (usize i = 0; i < current->to_size; i++) {
+      printf("\t  <- fd_%02d%s\n", current->to[i],
+             current->to[i] == -1 ? " (external)" : "");
+    }
+
     current = current->next;
   }
 }
 
 ObjectList *list_find(ObjectList *list, Object object) {
-  // Static variables to remember state between calls
-  static ObjectList *last_position = NULL;
-  static char *last_object = NULL;
-  ObjectList *current;
-
-  // If non-NULL list is provided, start a new search
-  if (list != NULL) {
-    // Free previous saved object if any
-    free(last_object);
-    last_object = strdup(object);
-    last_position = NULL;
-    current = list;
-  } else {
-    // Continue previous search
-    if (last_position == NULL || last_position->next == NULL) {
-      return NULL;
-    }
-    current = last_position->next;
-    object = last_object; // Use the stored object
-  }
-
-  // Search for the object
-  while (current != NULL) {
-    if (strcmp(current->self, object) == 0) {
-      last_position = current;
-      return current;
-    }
-    current = current->next;
-  }
-
-  return NULL;
-}
-
-// Fixed: compare by fd instead of ip/tcp strings
-ObjectList *list_find_connection(ObjectList *list, int fd) {
   ObjectList *current = list;
+
   while (current != NULL) {
-    if (current->fd == fd) {
+    if (current->self != NULL && strcmp(current->self, object) == 0) {
       return current;
     }
     current = current->next;
   }
+
   return NULL;
 }
 

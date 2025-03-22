@@ -86,6 +86,7 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   node->server->fd = fd;
 
   node->in_net = false;
+  node->net = 1000;
 
   // create TCP listener
 
