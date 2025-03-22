@@ -2,8 +2,8 @@
 
 #include "../types.h"
 
-NodeList *ndn_nodes(Node *, u16 net);
+NodeList *ndn_nodes(Node *);
 
-void ndn_register(Node *, u16 net);
+void ndn_register(Node *);
 
 void ndn_unregister(Node *);

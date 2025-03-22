@@ -286,19 +286,15 @@ void grow_internal(Node *node) {
   }
 }
 
-// Add to cache
 void cache_add(Node *node, Object object) {
   if (node->cache_count == node->cache_size) {
     // Cache full, remove oldest (FIFO)
     free(node->cache[node->cache_head]);
-
     // Add new element where the oldest was
     node->cache[node->cache_head] = strdup(object);
-
     // Move head pointer (wrapping around if needed)
     node->cache_head = (node->cache_head + 1) % node->cache_size;
   } else {
-    // Cache not full yet
     usize insert_pos =
         (node->cache_head + node->cache_count) % node->cache_size;
     node->cache[insert_pos] = strdup(object);
@@ -306,7 +302,6 @@ void cache_add(Node *node, Object object) {
   }
 }
 
-// Check if object is in cache
 bool cache_contains(Node *node, Object object) {
   for (usize i = 0; i < node->cache_count; i++) {
     usize pos = (node->cache_head + i) % node->cache_size;

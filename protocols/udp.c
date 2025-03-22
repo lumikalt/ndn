@@ -7,8 +7,9 @@
 #include <unistd.h>
 
 /// Request the list of nodes in the network
-NodeList *ndn_nodes(Node *node, u16 net) {
+NodeList *ndn_nodes(Node *node) {
   Server *s = node->server;
+  u16 net = node->net;
   NodeList *nodes = malloc(sizeof(NodeList));
   if (!nodes) {
     perror(ERR "malloc");
@@ -106,14 +107,15 @@ NodeList *ndn_nodes(Node *node, u16 net) {
 
 /// Register the node in the network, and check if the server accepted the
 /// node entry.
-void ndn_register(Node *node, u16 net) {
+void ndn_register(Node *node) {
   ssize_t n;
   char buffer[256];
   Server *s = node->server;
+  u16 net = node->net;
 
-  sprintf(buffer, "REG %03d %s %s", net, node->ip, node->tcp);
+  sprintf(buffer, "REG %03u %s %s", net, node->ip, node->tcp);
 
-  printf(NOTICE "Requesting registration in net %03d\n", net);
+  printf(NOTICE "Requesting registration in net %03u\n", net);
 
   if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0) {
@@ -134,7 +136,7 @@ void ndn_register(Node *node, u16 net) {
     fprintf(stderr, ERR "Server refused the registration\n");
   }
 
-  printf(OK "Successfully registered in the network %d\n", net);
+  printf(OK "Successfully registered\n");
 }
 
 /// Unregister the node from the network, and check if the server accepted the
@@ -167,6 +169,9 @@ void ndn_unregister(Node *node) {
     fprintf(stderr, ERR "Server refused the connection to net %03zu\n",
             node->net);
   }
+
+  node->in_net = false;
+  node->net = 1000;
 
   printf(OK "Successfully left network %zu\n", node->net);
 }
