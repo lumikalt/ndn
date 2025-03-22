@@ -178,7 +178,7 @@ void ndn_interest(Node *node, Object object, int fd) {
   printf(NOTICE "Requesting object from network\n");
 
   // Add to interest list
-  list_add(node->interests, object, fd);
+  list_add(node->interests, object, fd, 0);
 
   sprintf(buffer, "INTEREST %s\n", object);
 
@@ -191,9 +191,6 @@ void ndn_interest(Node *node, Object object, int fd) {
     if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
       perror("\n" ERR "writing INTEREST");
     }
-
-    printf(NOTICE "Sent INTEREST to %s:%s\n", node->internal[i]->ip,
-           node->internal[i]->tcp);
   }
 
   // Ask external
@@ -249,66 +246,46 @@ void ndn_object(Node *node, Object object) {
   }
 }
 
-void ndn_noobject(Node *node, Object object) {
-  ObjectList *interest;
-
-  printf(NOTICE "Processing noobject\n");
-
-  // Find all matching interests
-  interest = list_find(node->interests, object);
+void ndn_noobject(Node *node, Object object, int senderfd) {
+  ObjectList *interest = list_find(node->interests, object);
   if (interest == NULL) {
     printf(NOTICE "Not interested in this object\n");
     return;
   }
 
-  // Process the first match
-  if (interest->fd == -1) {
-    printf(OK "Object '%s' found for our own request\n", object);
-
-    // Add to objects list
-    list_add(node->objects, object, -1);
-  } else {
-    sprintf(buffer, "OBJECT %s\n", object);
-    if (write(interest->fd, buffer, strlen(buffer)) < 0) {
-      perror(ERR "writing OBJECT");
-    } else {
-      printf(NOTICE "Sent object to fd_%02d\n", interest->fd);
+  bool all_negative = true;
+  for (usize i = 0; i < interest->to_size;
+       i++) { // remove sender from interest->to
+    if (interest->to[i] == senderfd) {
+      interest->to[i] = -1;
+      break;
     }
 
-    // Cache the object if not already cached and not owned
-    if (!cache_contains(node, object) && !list_find(node->objects, object)) {
-      cache_add(node, object);
-      printf(NOTICE "Cached object '%s'\n", object);
+    if (interest->to[i] != -1) {
+      all_negative = false;
     }
   }
 
-  // Continue finding all other matches
-  while ((interest = list_find(NULL, object)) != NULL) {
-    if (interest->fd == -1) {
-      printf(OK "Object '%s' found for our own request\n", object);
+  if (!all_negative)
+    return;
 
-      // Add to objects list
-      list_add(node->objects, object, -1);
-    } else {
-      sprintf(buffer, "OBJECT %s\n", object);
-      if (write(interest->fd, buffer, strlen(buffer)) < 0) {
-        perror(ERR "writing OBJECT");
-      } else {
-        printf(NOTICE "Sent OBJECT '%s' to fd_%02d\n", object, interest->fd);
-      }
+  list_remove(node->interests, object);
 
-      // Cache the object if not already cached and not owned
-      if (!cache_contains(node, object) && !list_find(node->objects, object)) {
-        cache_add(node, object);
-        printf(NOTICE "Cached object '%s'\n", object);
-      }
+  printf(NOTICE "No one has the object, reporting to the interested nodes... ");
+
+  // Write NOOBJECT to all other interests
+  char buffer[128];
+  sprintf(buffer, "NOOBJECT %s\n", object);
+
+  for (usize i = 0; i < interest->by_size; i++) {
+    if (interest->by[i] == -1) {
+      continue;
+    }
+
+    if (write(interest->by[i], buffer, strlen(buffer)) < 0) {
+      perror("\n" ERR "writing NOOBJECT");
     }
   }
 
-  // Remove all interests for this object
-  interest = list_find(node->interests, object);
-  while (interest != NULL) {
-    list_remove(node->interests, interest->self);
-    interest = list_find(node->interests, object);
-  }
+  printf("sent\n");
 }
