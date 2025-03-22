@@ -331,25 +331,15 @@ void ndn_show_interest_table(Node *node) {
   list_print_interests(node->external->fd, node->interests);
 }
 
-/*
-void ndn_leave(Node *node) {
-  if (!node->in_net) {
-    fprintf(stderr, ERR "Not connected to a network\n");
-    return;
-  }
-
-  ndn_unregister(node);
-  node->in_net = false;
-
-  printf(NOTICE "Leaving network\n");
-}
-*/
-
 void ndn_leave(Node *node) {
   // Check if node is not in a network
   if (!node->in_net) {
     fprintf(stderr, ERR "Not connected to a network\n");
     return;
+  }
+
+  if (node->net < 1000) {
+    ndn_unregister(node);
   }
 
   // Check if the node is itself's saveguard
@@ -365,9 +355,6 @@ void ndn_leave(Node *node) {
 
   // If it is not itself's safeguard
   if (!self_safeguard) {
-    // Send UNREG + wait for OKUNREG
-    ndn_unregister(node);
-
     // Clode tcp conections with neighbours and removes fds
     if (node->external) {
       close(node->external->fd);
@@ -433,5 +420,6 @@ void ndn_leave(Node *node) {
   // TODO other case
 
   node->in_net = false;
+  node->net = 1000;
   printf(NOTICE "Leaving network\n");
 }
