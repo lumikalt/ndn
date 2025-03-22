@@ -303,7 +303,7 @@ void ndn_run(Node *node) {
               char object[101];
               if (sscanf(search_start, "NOOBJECT %100s", object) == 1) {
                 printf(NOTICE "Processing NOOBJECT for object %s\n", object);
-                ndn_noobject(node, object);
+                ndn_noobject(node, object, i);
                 processed_command = true;
               } else {
                 fprintf(stderr, ERR "Invalid NOOBJECT format\n");

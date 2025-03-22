@@ -19,4 +19,4 @@ void ndn_interest(Node *, Object, int fd);
 void ndn_object(Node *, Object);
 
 // Node doesn't have the object
-void ndn_noobject(Node *, Object);
+void ndn_noobject(Node *, Object, int senderfd);
