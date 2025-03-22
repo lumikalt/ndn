@@ -265,7 +265,7 @@ void ndn_create(Node *node, const char *name) {
   Object object = malloc(strlen(name) + 1);
   strcpy(object, name);
 
-  list_add(node->objects, object, -1);
+  list_add(node->objects, object, 0, 0);
 }
 
 void ndn_delete(Node *node, const char *name) {
