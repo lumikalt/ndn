@@ -34,10 +34,10 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
 
-  NodeList *network = ndn_nodes(node, net);
+  NodeList *network = ndn_nodes(node);
   if (network->size == 0) {
     clean_nodelist(network);
-    ndn_register(node, net);
+    ndn_register(node);
     node->in_net = true;
     printf(OK "Lone node, waiting for others\n");
     return;
@@ -155,7 +155,7 @@ void ndn_join(Node *node, u16 net) {
 
   // Now register the node with the network
   printf(OK "Registering node\n");
-  ndn_register(node, net);
+  ndn_register(node);
   node->in_net = true;
   node->net = net;
   printf(OK "Joined network %03d\n", net);
@@ -265,7 +265,7 @@ void ndn_create(Node *node, const char *name) {
   Object object = malloc(strlen(name) + 1);
   strcpy(object, name);
 
-  list_add(node->objects, object, NULL, NULL);
+  list_add(node->objects, object, -1);
 }
 
 void ndn_delete(Node *node, const char *name) {
@@ -304,18 +304,31 @@ void ndn_show_names(Node *node) {
   printf(NOTICE "Owned:\n");
   list_print(node->objects);
 
-  // print the cache
+  // Print the cache from oldest to newest
   printf(NOTICE "Cached:\n");
-  for (usize i = 0; i < node->cache_size; i++) {
-    if (node->cache[i] != NULL) {
-      printf(NOTICE "\t%s\n", node->cache[i]);
+
+  if (node->cache_count == 0) {
+    printf(RESET "\t(empty)\n");
+  } else {
+    // Start from the oldest item (cache_head) and iterate through all items
+    for (usize i = 0; i < node->cache_count; i++) {
+      // Calculate the position in the circular buffer
+      usize pos = (node->cache_head + i) % node->cache_size;
+
+      if (node->cache[pos]) {
+        // Show the age of the item (0 = oldest)
+        printf(RESET "\t[%zu] `%s`%s\n", i, node->cache[pos],
+               (i == 0)                       ? " (oldest)"
+               : (i == node->cache_count - 1) ? " (newest)"
+                                              : "");
+      }
     }
   }
 }
 
 void ndn_show_interest_table(Node *node) {
   printf(NOTICE "Interests:\n");
-  list_print_interests(node->interests);
+  list_print_interests(node->external->fd, node->interests);
 }
 
 /*
@@ -332,35 +345,30 @@ void ndn_leave(Node *node) {
 }
 */
 
-
-
-
-
 void ndn_leave(Node *node) {
-  //Check if node is not in a network
+  // Check if node is not in a network
   if (!node->in_net) {
     fprintf(stderr, ERR "Not connected to a network\n");
     return;
   }
 
-  //Check if the node is itself's saveguard
+  // Check if the node is itself's saveguard
   bool self_safeguard = false;
   if (node->safeguard) {
     if (strcmp(node->ip, node->safeguard->ip) == 0 &&
-      strcmp(node->tcp, node->safeguard->tcp) == 0) {
+        strcmp(node->tcp, node->safeguard->tcp) == 0) {
       self_safeguard = true;
-      }
+    }
   }
 
-  //True processing begins here
+  // True processing begins here
 
-  //If it is not itself's safeguard
+  // If it is not itself's safeguard
   if (!self_safeguard) {
-    //Send UNREG + wait for OKUNREG
+    // Send UNREG + wait for OKUNREG
     ndn_unregister(node);
 
-
-    //Clode tcp conections with neighbours and removes fds
+    // Clode tcp conections with neighbours and removes fds
     if (node->external) {
       close(node->external->fd);
       printf(NOTICE "Closed external connection\n");
@@ -375,7 +383,6 @@ void ndn_leave(Node *node) {
         printf(NOTICE "Closed internal connection %zu\n", i);
       }
     }
-
 
     /*
      *    Change topology:
@@ -392,11 +399,14 @@ void ndn_leave(Node *node) {
           continue;
 
         char entry_msg[256];
-        sprintf(entry_msg, "ENTRY %s %s", node->external->ip, node->external->tcp);
+        sprintf(entry_msg, "ENTRY %s %s", node->external->ip,
+                node->external->tcp);
         if (send(in_node->fd, entry_msg, strlen(entry_msg), 0) < 0) {
-          fprintf(stderr, ERR "Failed to send ENTRY message to internal node %zu\n", i);
+          fprintf(stderr,
+                  ERR "Failed to send ENTRY message to internal node %zu\n", i);
         } else {
-          printf(OK "Sent ENTRY message to internal node %zu: now connecting to %s:%s\n",
+          printf(OK "Sent ENTRY message to internal node %zu: now connecting "
+                    "to %s:%s\n",
                  i, node->external->ip, node->external->tcp);
         }
 
@@ -408,9 +418,11 @@ void ndn_leave(Node *node) {
         char safe_msg[256];
         sprintf(safe_msg, "SAFE");
         if (send(in_node->fd, safe_msg, strlen(safe_msg), 0) < 0) {
-          fprintf(stderr, ERR "Failed to send SAFE message to internal node %zu\n", i);
+          fprintf(stderr,
+                  ERR "Failed to send SAFE message to internal node %zu\n", i);
         } else {
-          printf(OK "Sent SAFE message on internal connection %zu (fd %d)\n", i, in_node->fd);
+          printf(OK "Sent SAFE message on internal connection %zu (fd %d)\n", i,
+                 in_node->fd);
         }
       }
     }
@@ -418,7 +430,7 @@ void ndn_leave(Node *node) {
     printf(NOTICE "Node is self-safeguard; special handling may be required\n");
   }
 
-  //TODO other case
+  // TODO other case
 
   node->in_net = false;
   printf(NOTICE "Leaving network\n");
