@@ -206,3 +206,67 @@ void ndn_interest(Node *node, Object object, int fd) {
   }
 }
 
+void ndn_object(Node *node, Object object) {
+  char buffer[128];
+  ObjectList *interest;
+
+  printf(NOTICE "Processing object\n");
+
+  // Find all matching interests
+  interest = list_find(node->interests, object);
+  if (interest == NULL) {
+    printf(NOTICE "Not interested in this object\n");
+    return;
+  }
+
+  // Process the first match
+  if (interest->fd == -1) {
+    printf(OK "Object '%s' found for our own request\n", object);
+
+    // Add to objects list
+    list_add(node->objects, object, -1);
+  } else {
+    sprintf(buffer, "OBJECT %s\n", object);
+    if (write(interest->fd, buffer, strlen(buffer)) < 0) {
+      perror(ERR "writing OBJECT");
+    } else {
+      printf(NOTICE "Sent object to fd_%02d\n", interest->fd);
+    }
+
+    // Cache the object if not already cached and not owned
+    if (!cache_contains(node, object) && !list_find(node->objects, object)) {
+      cache_add(node, object);
+      printf(NOTICE "Cached object '%s'\n", object);
+    }
+  }
+
+  // Continue finding all other matches
+  while ((interest = list_find(NULL, object)) != NULL) {
+    if (interest->fd == -1) {
+      printf(OK "Object '%s' found for our own request\n", object);
+
+      // Add to objects list
+      list_add(node->objects, object, -1);
+    } else {
+      sprintf(buffer, "OBJECT %s\n", object);
+      if (write(interest->fd, buffer, strlen(buffer)) < 0) {
+        perror(ERR "writing OBJECT");
+      } else {
+        printf(NOTICE "Sent OBJECT '%s' to fd_%02d\n", object, interest->fd);
+      }
+
+      // Cache the object if not already cached and not owned
+      if (!cache_contains(node, object) && !list_find(node->objects, object)) {
+        cache_add(node, object);
+        printf(NOTICE "Cached object '%s'\n", object);
+      }
+    }
+  }
+
+  // Remove all interests for this object
+  interest = list_find(node->interests, object);
+  while (interest != NULL) {
+    list_remove(node->interests, interest->self);
+    interest = list_find(node->interests, object);
+  }
+}
