@@ -380,7 +380,7 @@ void process_user_input(Node *node, char *input) {
   // check for nodes net
   if ((sscanf(input, "nodes %3s%n", net, &pos) == 1 && input[pos] == '\0') ||
       (sscanf(input, "n %3s%n", net, &pos) == 1 && input[pos] == '\0')) {
-    NodeList *nodes = ndn_nodes(node, atoi(net));
+    NodeList *nodes = ndn_nodes(node);
 
     if (nodes != NULL)
       for (usize i = 0; i < nodes->size; i++) {
