@@ -54,6 +54,8 @@ typedef struct Node {
   ObjectList *interests;
   Object *cache;
   usize cache_size;
+  usize cache_head;  // Points to oldest element
+  usize cache_count; // Current number of elements
 
   AdjacentNode *safeguard;
   AdjacentNode *external;

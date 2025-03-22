@@ -23,6 +23,11 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
     exit(1);
   }
 
+  node->cache = malloc(cache_size * sizeof(Object));
+  node->cache_size = cache_size;
+  node->cache_head = 0;
+  node->cache_count = 0;
+
   node->objects = NULL;
   node->interests = NULL;
 
@@ -279,4 +284,35 @@ void grow_internal(Node *node) {
       exit(1);
     }
   }
+}
+
+// Add to cache
+void cache_add(Node *node, Object object) {
+  if (node->cache_count == node->cache_size) {
+    // Cache full, remove oldest (FIFO)
+    free(node->cache[node->cache_head]);
+
+    // Add new element where the oldest was
+    node->cache[node->cache_head] = strdup(object);
+
+    // Move head pointer (wrapping around if needed)
+    node->cache_head = (node->cache_head + 1) % node->cache_size;
+  } else {
+    // Cache not full yet
+    usize insert_pos =
+        (node->cache_head + node->cache_count) % node->cache_size;
+    node->cache[insert_pos] = strdup(object);
+    node->cache_count++;
+  }
+}
+
+// Check if object is in cache
+bool cache_contains(Node *node, Object object) {
+  for (usize i = 0; i < node->cache_count; i++) {
+    usize pos = (node->cache_head + i) % node->cache_size;
+    if (strcmp(node->cache[pos], object) == 0) {
+      return true;
+    }
+  }
+  return false;
 }

@@ -38,3 +38,6 @@ char *str_escape(const char *s);
 void clean_nodelist(NodeList *nodes);
 
 void grow_internal(Node *node);
+
+void cache_add(Node *node, Object object);
+bool cache_contains(Node *node, Object object);
