@@ -200,7 +200,7 @@ void ndn_run(Node *node) {
           printf("\b\b" MAGENTA "fd_%02d" RESET "\t%s\n", i, escaped);
           free(escaped);
 
-          if (i >= last_msgs_capacity) {
+          if (i >= (u64)last_msgs_capacity) {
             usize new_capacity = i * 2;
             char **new_last_msgs =
                 realloc(last_msgs, new_capacity * sizeof(char *));

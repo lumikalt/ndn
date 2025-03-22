@@ -123,3 +123,86 @@ void ndn_entry(Node *node, char *ip, char *tcp, int enteringfd) {
   // enviar msg de salvaguarda por fd;
   // return;
 }
+
+/* Object */
+
+void ndn_interest(Node *node, Object object, int fd) {
+  char buffer[128];
+
+  // Check if we have the object
+  if (list_find(node->objects, object)) { // we got it
+    printf(NOTICE "Object belongs to self... ");
+
+    sprintf(buffer, "OBJECT %s\n", object);
+    if (write(fd, buffer, strlen(buffer)) < 0) {
+      perror("\n" ERR "writing OBJECT");
+    }
+
+    printf("sent\n");
+
+    return;
+  }
+
+  // Check if we have it cached
+  for (usize i = 0; i < node->cache_size; i++) {
+    if (strcmp(node->cache[i], object) == 0) { // its cached
+      printf(NOTICE "Object is cached... ");
+
+      sprintf(buffer, "OBJECT %s\n", object);
+      if (write(fd, buffer, strlen(buffer)) < 0) {
+        perror("\n" ERR "writing OBJECT");
+      }
+
+      printf("sent\n");
+
+      return;
+    }
+  }
+
+  // check if fd is our only connection
+  if (node->external->fd == fd &&
+      (node->internal_index == 0 ||
+       (node->internal_index == 1 && node->internal[0]->fd == fd))) {
+    printf(NOTICE "No other connections, can't help\n");
+
+    sprintf(buffer, "NOOBJECT %s\n", object);
+    if (write(fd, buffer, strlen(buffer)) < 0) {
+      perror("\n" ERR "writing NOOBJECT");
+    }
+
+    return;
+  }
+
+  // Request it from the network
+
+  printf(NOTICE "Requesting object from network\n");
+
+  // Add to interest list
+  list_add(node->interests, object, fd);
+
+  sprintf(buffer, "INTEREST %s\n", object);
+
+  // Ask all internals
+  for (usize i = 0; i < node->internal_index; i++) {
+    if (node->internal[i]->fd == fd) {
+      continue;
+    }
+
+    if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
+      perror("\n" ERR "writing INTEREST");
+    }
+
+    printf(NOTICE "Sent INTEREST to %s:%s\n", node->internal[i]->ip,
+           node->internal[i]->tcp);
+  }
+
+  // Ask external
+  if (node->external->fd != fd) {
+    if (write(node->external->fd, buffer, strlen(buffer)) < 0) {
+      perror("\n" ERR "writing INTEREST");
+    }
+
+    printf(NOTICE "Sent INTEREST to external\n");
+  }
+}
+
