@@ -23,13 +23,11 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
     exit(1);
   }
 
-  node->cache = malloc(cache_size * sizeof(Object));
-  node->cache_size = cache_size;
   node->cache_head = 0;
   node->cache_count = 0;
 
-  node->objects = NULL;
-  node->interests = NULL;
+  node->objects = list_create();
+  node->interests = list_create();
 
   node->ip = ip;
   node->tcp = tcp;
@@ -144,8 +142,11 @@ void clean_node(Node *node) {
   list_destroy(node->objects);
   list_destroy(node->interests);
 
-  for (usize i = 0; i < node->cache_size; i++) {
-    free(node->cache[i]);
+  for (usize i = 0; i < node->cache_count; i++) {
+    usize pos = (node->cache_head + i) % node->cache_size;
+    if (node->cache[pos]) {
+      free(node->cache[pos]);
+    }
   }
   free(node->cache);
 
@@ -205,6 +206,9 @@ void clean_node(Node *node) {
 }
 
 void clean_nodelist(NodeList *nodes) {
+  if (!nodes)
+    return;
+
   for (usize i = 0; i < nodes->size; i++) {
     free(nodes->ip[i]);
     free(nodes->tcp[i]);

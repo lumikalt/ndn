@@ -382,12 +382,13 @@ void process_user_input(Node *node, char *input) {
       (sscanf(input, "n %3s%n", net, &pos) == 1 && input[pos] == '\0')) {
     NodeList *nodes = ndn_nodes(node);
 
-    if (nodes != NULL)
+    if (nodes != NULL) {
       for (usize i = 0; i < nodes->size; i++) {
         printf("\t(%zu) %s:%s\n", i, nodes->ip[i], nodes->tcp[i]);
       }
 
-    clean_nodelist(nodes);
+      clean_nodelist(nodes);
+    }
 
     return;
   }

@@ -34,7 +34,13 @@ void ndn_join(Node *node, u16 net) {
     return;
   }
 
+  node->net = net;
+
   NodeList *network = ndn_nodes(node);
+  if (!network) {
+    fprintf(stderr, ERR "Failed to get the network list\n");
+    return;
+  }
   if (network->size == 0) {
     clean_nodelist(network);
     ndn_register(node);
@@ -332,9 +338,8 @@ void ndn_show_interest_table(Node *node) {
 }
 
 void ndn_leave(Node *node) {
-  // Check if node is not in a network
   if (!node->in_net) {
-    fprintf(stderr, ERR "Not connected to a network\n");
+    fprintf(stderr, ERR "Not in a network\n");
     return;
   }
 
@@ -342,9 +347,10 @@ void ndn_leave(Node *node) {
     ndn_unregister(node);
   }
 
-  // Check if the node is itself's saveguard
+  // Check if the node is its own safeguard
   bool self_safeguard = false;
-  if (node->safeguard) {
+  if (node->safeguard && node->safeguard->ip && node->safeguard->tcp &&
+      node->ip && node->tcp) {
     if (strcmp(node->ip, node->safeguard->ip) == 0 &&
         strcmp(node->tcp, node->safeguard->tcp) == 0) {
       self_safeguard = true;
