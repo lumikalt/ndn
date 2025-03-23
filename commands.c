@@ -46,6 +46,12 @@ void ndn_join(Node *node, u16 net) {
     ndn_register(node);
     node->in_net = true;
     printf(OK "Lone node, waiting for others\n");
+
+    // Set self as external
+    node->external->ip = strdup(node->ip);
+    node->external->tcp = strdup(node->tcp);
+    node->external->fd = -1;
+
     return;
   }
 
@@ -337,105 +343,6 @@ void ndn_show_interest_table(Node *node) {
   list_print_interests(node->external->fd, node->interests);
 }
 
-// void ndn_leave(Node *node) {
-//   if (!node->in_net) {
-//     fprintf(stderr, ERR "Not in a network\n");
-//     return;
-//   }
-
-//   if (node->net < 1000) {
-//     ndn_unregister(node);
-//   }
-
-//   // Check if the node is its own safeguard
-//   bool self_safeguard = false;
-//   if (node->safeguard && node->safeguard->ip && node->safeguard->tcp &&
-//       node->ip && node->tcp) {
-//     if (strcmp(node->ip, node->safeguard->ip) == 0 &&
-//         strcmp(node->tcp, node->safeguard->tcp) == 0) {
-//       self_safeguard = true;
-//     }
-//   }
-
-//   // True processing begins here
-
-//   // If it is not itself's safeguard
-//   if (!self_safeguard) {
-//     // Clode tcp conections with neighbours and removes fds
-//     if (node->external) {
-//       close(node->external->fd);
-//       printf(NOTICE "Closed external connection\n");
-//     }
-//     if (node->safeguard) {
-//       close(node->safeguard->fd);
-//       printf(NOTICE "Closed safeguard connection\n");
-//     }
-//     for (usize i = 0; i < node->internal_index; i++) {
-//       if (node->internal[i]) {
-//         close(node->internal[i]->fd);
-//         printf(NOTICE "Closed internal connection %zu\n", i);
-//       }
-//     }
-
-//     /*
-//      *    Change topology:
-//      *    - Sends entry to external node
-//      *    - Updates internal node conection
-//      *    - Sends safe to internal nodes
-//      */
-//     if (!node->external) {
-//       fprintf(stderr, ERR "No external node to reconfigure internal
-//       nodes\n");
-//     } else {
-//       for (usize i = 0; i < node->internal_index; i++) {
-//         AdjacentNode *in_node = node->internal[i];
-//         if (!in_node)
-//           continue;
-
-//         char entry_msg[256];
-//         sprintf(entry_msg, "ENTRY %s %s", node->external->ip,
-//                 node->external->tcp);
-//         if (send(in_node->fd, entry_msg, strlen(entry_msg), 0) < 0) {
-//           fprintf(stderr,
-//                   ERR "Failed to send ENTRY message to internal node %zu\n",
-//                   i);
-//         } else {
-//           printf(OK "Sent ENTRY message to internal node %zu: now connecting
-//           "
-//                     "to %s:%s\n",
-//                  i, node->external->ip, node->external->tcp);
-//         }
-
-//         free(in_node->ip);
-//         free(in_node->tcp);
-//         in_node->ip = strdup(node->external->ip);
-//         in_node->tcp = strdup(node->external->tcp);
-
-//         char safe_msg[256];
-//         sprintf(safe_msg, "SAFE");
-//         if (send(in_node->fd, safe_msg, strlen(safe_msg), 0) < 0) {
-//           fprintf(stderr,
-//                   ERR "Failed to send SAFE message to internal node %zu\n",
-//                   i);
-//         } else {
-//           printf(OK "Sent SAFE message on internal connection %zu (fd %d)\n",
-//           i,
-//                  in_node->fd);
-//         }
-//       }
-//     }
-//   } else {
-//     printf(NOTICE "Node is self-safeguard; special handling may be
-//     required\n");
-//   }
-
-//   // TODO other case
-
-//   node->in_net = false;
-//   node->net = 1000;
-//   printf(NOTICE "Leaving network\n");
-// }
-
 void ndn_leave(Node *node) {
   if (!node->in_net) {
     fprintf(stderr, ERR "Not in a network\n");
@@ -445,15 +352,10 @@ void ndn_leave(Node *node) {
   // Unregister from the network if we're in a valid net
   if (node->net < 1000) {
     ndn_unregister(node);
-    printf(NOTICE "Leaving network %03zu\n", node->net);
   }
 
-  // Close external connection if it exists
-  if (node->external && node->external->fd != -1) {
-    close(node->external->fd);
-    printf(NOTICE "Closed external connection\n");
-
-    // Free memory but don't free the struct itself
+  // Close external connection
+  if (node->external) {
     if (node->external->ip) {
       free(node->external->ip);
       node->external->ip = NULL;
@@ -462,16 +364,14 @@ void ndn_leave(Node *node) {
       free(node->external->tcp);
       node->external->tcp = NULL;
     }
-    node->external->fd = -1;
+    if (node->external->fd != -1) {
+      close(node->external->fd);
+      node->external->fd = -1;
+    }
   }
 
-  // Close safeguard connection if it exists and is different from external
-  if (node->safeguard && node->safeguard->fd != -1 &&
-      (!node->external || node->safeguard->fd != node->external->fd)) {
-    close(node->safeguard->fd);
-    printf(NOTICE "Closed safeguard connection\n");
-
-    // Free memory
+  // Close safeguard connection
+  if (node->safeguard) {
     if (node->safeguard->ip) {
       free(node->safeguard->ip);
       node->safeguard->ip = NULL;
@@ -480,18 +380,15 @@ void ndn_leave(Node *node) {
       free(node->safeguard->tcp);
       node->safeguard->tcp = NULL;
     }
-    node->safeguard->fd = -1;
+    if (node->safeguard->fd != -1) {
+      close(node->safeguard->fd);
+      node->safeguard->fd = -1;
+    }
   }
 
-  // Close all internal connections
+  // Clean up internal connections
   for (usize i = 0; i < node->internal_index; i++) {
     if (node->internal[i]) {
-      if (node->internal[i]->fd != -1) {
-        close(node->internal[i]->fd);
-        printf(NOTICE "Closed internal connection %zu\n", i);
-      }
-
-      // Free memory
       if (node->internal[i]->ip) {
         free(node->internal[i]->ip);
         node->internal[i]->ip = NULL;
@@ -500,19 +397,23 @@ void ndn_leave(Node *node) {
         free(node->internal[i]->tcp);
         node->internal[i]->tcp = NULL;
       }
-
-      // Free the entire structure
+      if (node->internal[i]->fd != -1) {
+        close(node->internal[i]->fd);
+        node->internal[i]->fd = -1;
+      }
       free(node->internal[i]);
       node->internal[i] = NULL;
     }
   }
-
-  // Reset internal count
   node->internal_index = 0;
+
+  // Clear objects & interests
+  list_clear(node->objects);
+  list_clear(node->interests);
 
   // Reset network state
   node->in_net = false;
-  node->net = 1000; // Default value indicating "no network"
+  node->net = 1000;
 
-  printf(OK "Successfully left network\n");
+  printf(OK "Leave completed\n");
 }

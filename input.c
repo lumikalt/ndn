@@ -137,47 +137,10 @@ void ndn_run(Node *node) {
             last_msgs[i] = NULL;
           } else {
             perror(ERR "read");
+            continue;
           }
 
-          // Update node structures when a client disconnects
-          if (node->external && node->external->fd == i) {
-            printf(NOTICE "External disconnected\n");
-            free(node->external->ip);
-            free(node->external->tcp);
-            node->external->ip = NULL;
-            node->external->tcp = NULL;
-            node->external->fd = -1;
-
-            if (node->safeguard->fd == -1) { // if we're our own safeguard
-              free(node->safeguard->ip);
-              free(node->safeguard->tcp);
-              node->safeguard->ip = NULL;
-              node->safeguard->tcp = NULL;
-              // do something else?
-            } else {
-              // Send ENTRY to safeguard
-            }
-          }
-
-          // Check all internals
-          for (usize j = 0; j < node->internal_index; j++) {
-            if (node->internal[j] && node->internal[j]->fd == i) {
-              printf(NOTICE "Internal %s:%s disconnected\n",
-                     node->internal[j]->ip, node->internal[j]->tcp);
-              free(node->internal[j]->ip);
-              free(node->internal[j]->tcp);
-              free(node->internal[j]);
-
-              // Shift remaining nodes down to fill the gap
-              for (usize k = j; k < node->internal_index - 1; k++) {
-                node->internal[k] = node->internal[k + 1];
-              }
-              node->internal_index--;
-              node->internal[node->internal_index] = NULL;
-              break;
-            }
-          }
-
+          ndn_node_exit(node, i);
           // Close the socket and remove from fd set
           close(i);
           // FD_CLR(i, &master_fds);
@@ -380,7 +343,13 @@ void process_user_input(Node *node, char *input) {
   // check for nodes net
   if ((sscanf(input, "nodes %3s%n", net, &pos) == 1 && input[pos] == '\0') ||
       (sscanf(input, "n %3s%n", net, &pos) == 1 && input[pos] == '\0')) {
+    if (!is_valid_net(net)) {
+      fprintf(stderr, ERR "Wrong input, it must be 3 digits.\n");
+      return;
+    }
+    node->net = atoi(net);
     NodeList *nodes = ndn_nodes(node);
+    node->net = 1000;
 
     if (nodes != NULL) {
       for (usize i = 0; i < nodes->size; i++) {
@@ -422,6 +391,12 @@ void process_user_input(Node *node, char *input) {
 
       if (strcmp(ip, "0.0.0.0") == 0) {
         printf(OK "Created new network\n");
+
+        // Set self as external
+        node->external->ip = strdup(node->ip);
+        node->external->tcp = strdup(node->tcp);
+        node->external->fd = -1;
+
         return;
       }
 

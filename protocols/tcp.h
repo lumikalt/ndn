@@ -20,3 +20,6 @@ void ndn_object(Node *, Object);
 
 // Node doesn't have the object
 void ndn_noobject(Node *, Object, int senderfd);
+
+/* TCP cancelation */
+void ndn_node_exit(Node *node, int fd);

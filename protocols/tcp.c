@@ -310,3 +310,151 @@ void ndn_noobject(Node *node, Object object, int senderfd) {
     printf(ERR "Could not find requested object in net\n");
   }
 }
+
+/* TCP cancelation */
+
+void ndn_exit__ext(Node *node);
+
+void ndn_node_exit(Node *node, int fd) {
+  // Remove from internals
+  for (usize i = 0; i < node->internal_index; i++) {
+    if (node->internal[i]->fd == node->external->fd) {
+      printf(NOTICE "External was also an internal\n");
+
+      free(node->internal[i]->ip);
+      free(node->internal[i]->tcp);
+      free(node->internal[i]);
+      node->internal[i] = NULL;
+
+      // Shift remaining nodes down to fill the gap
+      for (usize k = i; k < node->internal_index - 1; k++) {
+        node->internal[k] = node->internal[k + 1];
+      }
+      node->internal_index--;
+      node->internal[node->internal_index] = NULL;
+      break;
+    }
+  }
+
+  if (node->external->fd == fd) {
+    ndn_exit__ext(node);
+    return;
+  }
+
+  if (node->safeguard->fd == fd) {
+    printf(NOTICE "Safeguard disconnected\n");
+    // Not specified...
+    return;
+  }
+
+  // It's an internal node, already removed
+  printf(NOTICE "Internal disconnected\n");
+}
+
+// The external node has disconnected
+void ndn_exit__ext(Node *node) {
+  printf(NOTICE "External disconnected\n");
+
+  free(node->external->ip);
+  free(node->external->tcp);
+  node->external->ip = NULL;
+  node->external->tcp = NULL;
+  node->external->fd = -1;
+
+  // Now there are 2 cases: either we're our own safeguard or not
+  if (node->safeguard->fd != -1) {
+    // Send ENTRY to safeguard
+    node->external->fd = node->safeguard->fd;
+    node->external->ip = node->safeguard->ip;
+    node->external->tcp = node->safeguard->tcp;
+
+    node->safeguard->fd = -1;
+    node->safeguard->ip = NULL;
+    node->safeguard->tcp = NULL;
+
+    printf(NOTICE "Elevating safeguard to external... ");
+
+    char buffer[128];
+    sprintf(buffer, "ENTRY %s %s\n", node->ip, node->tcp);
+    if (write(node->external->fd, buffer, strlen(buffer)) < 0) {
+      perror("\n" ERR "writing ENTRY");
+      return;
+    }
+    printf("done\n");
+
+    printf(NOTICE "Communicating changes to internals... ");
+
+    for (usize i = 0; i < node->internal_index; i++) {
+      if (node->internal[i]->fd == -1) {
+        continue;
+      }
+
+      sprintf(buffer, "SAFE %s %s\n", node->external->ip, node->external->tcp);
+      if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
+        perror("\n" ERR "writing SAFE");
+      }
+      printf("sent\n");
+    }
+  } else {
+    // We're our own safeguard
+    free(node->safeguard->ip);
+    free(node->safeguard->tcp);
+    node->safeguard->ip = NULL;
+    node->safeguard->tcp = NULL;
+
+    if (node->internal_index == 0) {
+      printf(NOTICE "Elevating self to external (lone node state)\n");
+
+      node->external->fd = -1;
+      node->external->ip = strdup(node->ip);
+      node->external->tcp = strdup(node->tcp);
+    } else {
+      // Choose a random internal to elevate to external
+      printf(NOTICE "Elevating random internal to external\n");
+
+      usize i = rand() % node->internal_index;
+
+      node->external->fd = node->internal[i]->fd;
+      node->external->ip = node->internal[i]->ip;
+      node->external->tcp = node->internal[i]->tcp;
+
+      free(node->internal[i]->ip);
+      free(node->internal[i]->tcp);
+      free(node->internal[i]);
+      node->internal[i] = NULL;
+
+      // Shift remaining nodes down to fill the gap
+      for (usize k = i; k < node->internal_index - 1; k++) {
+        node->internal[k] = node->internal[k + 1];
+      }
+      node->internal_index--;
+      node->internal[node->internal_index] = NULL;
+
+      printf(NOTICE "Elevated internal %zu to external\n", i);
+      printf(NOTICE "Communicating to new external... ");
+
+      char buffer[128];
+      sprintf(buffer, "ENTRY %s %s\n", node->ip, node->tcp);
+      if (write(node->external->fd, buffer, strlen(buffer)) < 0) {
+        perror("\n" ERR "writing ENTRY");
+        return;
+      }
+      printf("done\n");
+
+      printf(NOTICE "Communicating changes to internals... ");
+
+      for (usize i = 0; i < node->internal_index; i++) {
+        if (node->internal[i]->fd == -1) {
+          continue;
+        }
+
+        sprintf(buffer, "SAFE %s %s\n", node->external->ip,
+                node->external->tcp);
+        if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
+          perror("\n" ERR "writing SAFE");
+        }
+        printf("sent\n");
+      }
+    }
+  }
+}
