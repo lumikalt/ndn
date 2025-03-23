@@ -21,6 +21,7 @@ typedef struct ObjectList {
 ObjectList *list_create();
 void list_add(ObjectList *list, Object object, int by, int to);
 void list_remove(ObjectList *list, Object object);
+void list_clear(ObjectList *list);
 void list_destroy(ObjectList *list);
 void list_print(ObjectList *list);
 void list_print_interests(int externalfd, ObjectList *list);

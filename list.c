@@ -90,12 +90,26 @@ void list_remove(ObjectList *list, Object object) {
   }
 }
 
+void list_clear(ObjectList *list) {
+  ObjectList *current = list;
+  while (current != NULL) {
+    current->by_size = 0;
+    free(current->by);
+    current->to_size = 0;
+    free(current->to);
+    current = current->next;
+  }
+}
+
 void list_destroy(ObjectList *list) {
   ObjectList *current = list;
   while (current != NULL) {
-    ObjectList *temp = current;
-    current = current->next;
-    free(temp);
+    ObjectList *next = current->next;
+    free(current->self);
+    free(current->by);
+    free(current->to);
+    free(current);
+    current = next;
   }
 }
 
