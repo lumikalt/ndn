@@ -184,13 +184,27 @@ void ndn_interest(Node *node, Object object, int fd) {
 
   // Ask all internals
   for (usize i = 0; i < node->internal_index; i++) {
-    if (node->internal[i]->fd == fd) {
+    // dont ask it from nodes already waiting for it
+    ObjectList *found = list_find(node->interests, object);
+    bool found_i = false;
+    if (found) {
+      for (usize j = 0; j < found->to_size; j++) {
+        if (found->to[j] == node->internal[i]->fd) {
+          found_i = true;
+          break;
+        }
+      }
+    }
+
+    if (found_i) {
       continue;
     }
 
     if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
       perror("\n" ERR "writing INTEREST");
     }
+
+    list_add(node->interests, object, 0, i);
   }
 
   // Ask external
@@ -253,9 +267,9 @@ void ndn_noobject(Node *node, Object object, int senderfd) {
     return;
   }
 
+  // remove sender from interest->to
   bool all_negative = true;
-  for (usize i = 0; i < interest->to_size;
-       i++) { // remove sender from interest->to
+  for (usize i = 0; i < interest->to_size; i++) {
     if (interest->to[i] == senderfd) {
       interest->to[i] = -1;
       break;
@@ -277,8 +291,11 @@ void ndn_noobject(Node *node, Object object, int senderfd) {
   char buffer[128];
   sprintf(buffer, "NOOBJECT %s\n", object);
 
+  bool self_interest = false;
+
   for (usize i = 0; i < interest->by_size; i++) {
     if (interest->by[i] == -1) {
+      self_interest = true;
       continue;
     }
 
@@ -288,4 +305,8 @@ void ndn_noobject(Node *node, Object object, int senderfd) {
   }
 
   printf("sent\n");
+
+  if (self_interest) {
+    printf(ERR "Could not find requested object in net\n");
+  }
 }
