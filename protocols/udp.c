@@ -154,7 +154,7 @@ void ndn_unregister(Node *node) {
     return;
   }
 
-  printf(NOTICE "Requested unregistration from net %03zu\n", node->net);
+  printf(NOTICE "Requested unregistration\n");
 
   /* Wait for the OK */
 
@@ -170,8 +170,9 @@ void ndn_unregister(Node *node) {
             node->net);
   }
 
+  printf(OK "Successfully left network %zu\n", node->net);
+
   node->in_net = false;
   node->net = 1000;
 
-  printf(OK "Successfully left network %zu\n", node->net);
 }
