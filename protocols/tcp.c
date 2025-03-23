@@ -393,8 +393,8 @@ void ndn_exit__ext(Node *node) {
       if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
         perror("\n" ERR "writing SAFE");
       }
-      printf("sent\n");
     }
+    printf("sent\n");
   } else {
     // We're our own safeguard
     free(node->safeguard->ip);
@@ -404,6 +404,9 @@ void ndn_exit__ext(Node *node) {
 
     if (node->internal_index == 0) {
       printf(NOTICE "Elevating self to external (lone node state)\n");
+
+      free(node->external->ip);
+      free(node->external->tcp);
 
       node->external->fd = -1;
       node->external->ip = strdup(node->ip);
