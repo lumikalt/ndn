@@ -258,7 +258,7 @@ void ndn_run(Node *node) {
               char object[101];
               if (sscanf(search_start, "OBJECT %100s", object) == 1) {
                 printf(NOTICE "Processing OBJECT for object %s\n", object);
-                ndn_object(node, object);
+                ndn_object(node, object, i);
 
                 if (node->current_retrieval != NULL &&
                     strcmp(node->current_retrieval, object) == 0) {
@@ -328,32 +328,6 @@ void ndn_run(Node *node) {
       }
     }
 
-    // Check current retrieval request timeout
-    // if (node->current_retrieval != NULL) {
-    //   time_t current_time = time(NULL);
-    //   int elapsed = current_time - node->retrieval_start_time;
-
-    //   Check if object has been received
-    //   if (node->retrieval_done) {
-    //     printf("\b\b" OK "Object `%s` found after %d seconds\n",
-    //            node->current_retrieval, elapsed);
-    //     free(node->current_retrieval);
-    //     node->current_retrieval = NULL;
-    //     node->retrieval_done = false;
-    //   }
-    //   Check if timeout expired
-    //   else if (elapsed >= node->retrieval_timeout) {
-    //     printf(ERR "Timeout reached waiting for '%s'\n",
-    //            node->current_retrieval);
-    //     free(node->current_retrieval);
-    //     node->current_retrieval = NULL;
-    //     node->retrieval_done = false;
-    //   }
-
-    //   printf(YELLOW "> ");
-    //   fflush(stdout);
-    // }
-
     // Add this section to your main event loop in ndn_run
     if (node->current_retrieval != NULL) {
       time_t now = time(NULL);
@@ -364,21 +338,13 @@ void ndn_run(Node *node) {
       if (now != last_check) {
         last_check = now;
 
-        // Check if we've found the object
-        bool found = false;
-        for (usize i = 0; i < node->cache_count; i++) {
-          usize pos = (node->cache_head + i) % node->cache_size;
-          if (node->cache[pos] &&
-              strcmp(node->cache[pos], node->current_retrieval) == 0) {
-            found = true;
-            break;
-          }
-        }
-
-        if (found) {
-          printf(OK "Object '%s' found in cache\n", node->current_retrieval);
+        // Check if object has been received (via flag or cache)
+        if (node->retrieval_done) {
+          printf("\b\b" OK "Object '%s' found after %d seconds\n",
+                 node->current_retrieval, elapsed);
           free(node->current_retrieval);
           node->current_retrieval = NULL;
+          node->retrieval_done = false;
 
           printf(YELLOW "> ");
           fflush(stdout);

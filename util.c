@@ -310,19 +310,33 @@ void grow_internal(Node *node) {
 }
 
 void cache_add(Node *node, Object object) {
-  if (node->cache_count == node->cache_size) {
-    // Cache full, remove oldest (FIFO)
-    free(node->cache[node->cache_head]);
-    // Add new element where the oldest was
-    node->cache[node->cache_head] = strdup(object);
-    // Move head pointer (wrapping around if needed)
-    node->cache_head = (node->cache_head + 1) % node->cache_size;
-  } else {
-    usize insert_pos =
-        (node->cache_head + node->cache_count) % node->cache_size;
-    node->cache[insert_pos] = strdup(object);
-    node->cache_count++;
+  // First check if this object is already in the cache
+  for (usize i = 0; i < node->cache_count; i++) {
+    usize pos = (node->cache_head + i) % node->cache_size;
+    if (node->cache[pos] && strcmp(node->cache[pos], object) == 0) {
+      return;
+    }
   }
+
+  // If we're at the cache limit, remove the oldest item
+  if (node->cache_count == node->cache_size) {
+    if (node->cache[node->cache_head]) {
+      free(node->cache[node->cache_head]);
+      node->cache[node->cache_head] = NULL;
+    }
+
+    // Move head pointer to next position (oldest item)
+    node->cache_head = (node->cache_head + 1) % node->cache_size;
+    node->cache_count--;
+  }
+
+  // Add the new object at the next available position
+  usize pos = (node->cache_head + node->cache_count) % node->cache_size;
+  node->cache[pos] = strdup(object);
+  node->cache_count++;
+
+  // Debug info
+  printf(NOTICE "Cached '%s' at position %zu\n", object, pos);
 }
 
 bool cache_contains(Node *node, Object object) {

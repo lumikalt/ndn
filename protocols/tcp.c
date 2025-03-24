@@ -144,8 +144,10 @@ void ndn_interest(Node *node, Object object, int fd) {
   }
 
   // Check if we have it cached
-  for (usize i = 0; i < node->cache_size; i++) {
-    if (strcmp(node->cache[i], object) == 0) { // its cached
+  for (usize i = 0; i < node->cache_count; i++) {
+    usize pos = (node->cache_head + i) % node->cache_size;
+    if (node->cache[pos] &&
+        strcmp(node->cache[pos], object) == 0) { // its cached
       printf(NOTICE "Object is cached... ");
 
       sprintf(buffer, "OBJECT %s\n", object);
@@ -221,39 +223,46 @@ void ndn_interest(Node *node, Object object, int fd) {
   }
 }
 
-void ndn_object(Node *node, Object object) {
-  char buffer[128];
-  ObjectList *interest;
+void ndn_object(Node *node, Object object, int fd) {
+  // Check if this is the object we're waiting for
+  if (node->current_retrieval && strcmp(node->current_retrieval, object) == 0) {
+    printf(OK "Received requested object\n");
+    node->retrieval_done = true;
+  }
 
-  printf(NOTICE "Processing object\n");
+  // Add to cache
+  cache_add(node, object);
+  printf(OK "Cached object\n");
 
-  // Check if we have an interest in this object
-  interest = list_find(node->interests, object);
-  if (interest == NULL) {
-    printf(NOTICE "A Not interested in this object\n");
+  // Find the interest for this object
+  ObjectList *interest = list_find(node->interests, object);
+  if (!interest) {
+    // No interest record found, nothing more to do
     return;
   }
 
-  // We have an interest in this object
-  for (usize i = 0; i < interest->by_size; i++) {
-    if (interest->by[i] == -1) {
-      printf(OK "Object '%s' found for our own request\n", object);
-    } else {
-      printf(NOTICE "Sending fd_%02d this object... ", interest->by[i]);
-
-      sprintf(buffer, "OBJECT %s\n", object);
-      if (write(interest->by[i], buffer, strlen(buffer)) < 0) {
-        perror("\n" ERR "writing OBJECT");
+  // Safely forward the object to interested nodes
+  if (interest->by && interest->by_size > 0) {
+    for (usize i = 0; i < interest->by_size; i++) {
+      int from = interest->by[i];
+      if (from == fd || from == -1) {
+        continue; // Don't send back to sender or to self
       }
 
-      printf("sent\n");
+      printf(NOTICE "Sending fd_%02d this object... ", from);
+
+      char buffer[256];
+      sprintf(buffer, "OBJECT %s\n", object);
+      if (write(from, buffer, strlen(buffer)) < 0) {
+        perror("\n" ERR "writing OBJECT");
+      } else {
+        printf("sent\n");
+      }
     }
   }
 
+  // Remove interest
   list_remove(node->interests, object);
-
-  cache_add(node, object);
-  printf(OK "Cached object\n");
 }
 
 void ndn_noobject(Node *node, Object object, int senderfd) {
@@ -361,12 +370,29 @@ void ndn_exit__ext(Node *node) {
   if (node->safeguard->fd != -1) {
     // Send ENTRY to safeguard
     node->external->fd = node->safeguard->fd;
-    node->external->ip = node->safeguard->ip;
-    node->external->tcp = node->safeguard->tcp;
+
+    // Make copies of strings instead of direct pointer assignment
+    if (node->external->ip) {
+      free(node->external->ip);
+    }
+    if (node->external->tcp) {
+      free(node->external->tcp);
+    }
+
+    node->external->ip = strdup(node->safeguard->ip);
+    node->external->tcp = strdup(node->safeguard->tcp);
 
     node->safeguard->fd = -1;
-    node->safeguard->ip = NULL;
-    node->safeguard->tcp = NULL;
+
+    // Now free the safeguard pointers
+    if (node->safeguard->ip) {
+      free(node->safeguard->ip);
+      node->safeguard->ip = NULL;
+    }
+    if (node->safeguard->tcp) {
+      free(node->safeguard->tcp);
+      node->safeguard->tcp = NULL;
+    }
 
     printf(NOTICE "Elevating safeguard to external... ");
 

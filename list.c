@@ -26,9 +26,8 @@ ObjectList *list_create() {
 void list_add(ObjectList *list, Object object, int by, int to) {
   ObjectList *any = list_find(list, object);
   if (any != NULL) {
-    any->by_size++;
-
     if (by != 0) {
+      any->by_size++;
       any->by = realloc(any->by, any->by_size * sizeof(int));
       if (!any->by) {
         perror(ERR "realloc");
@@ -37,7 +36,7 @@ void list_add(ObjectList *list, Object object, int by, int to) {
       any->by[any->by_size - 1] = by;
     }
 
-    if (to == 0) {
+    if (to != 0) {
       any->to_size++;
       any->to = realloc(any->to, any->to_size * sizeof(int));
       if (!any->to) {
@@ -81,19 +80,23 @@ void list_add(ObjectList *list, Object object, int by, int to) {
 
 void list_remove(ObjectList *list, Object object) {
   ObjectList *current = list;
-  ObjectList *prev = NULL;
 
-  while (current != NULL) {
-    if (current->self == object) {
-      if (prev == NULL) {
-        list = current->next;
-      } else {
-        prev->next = current->next;
-      }
-      free(current);
+  while (current->next != NULL) {
+    if (current->next->self == object) {
+      // Remove the node after current
+      ObjectList *to_remove = current->next;
+      current->next = to_remove->next;
+
+      // Free the node's resources
+      if (to_remove->self)
+        free(to_remove->self);
+      if (to_remove->by)
+        free(to_remove->by);
+      if (to_remove->to)
+        free(to_remove->to);
+      free(to_remove);
       return;
     }
-    prev = current;
     current = current->next;
   }
 }
@@ -115,7 +118,13 @@ void list_destroy(ObjectList *list) {
 }
 
 void list_print(ObjectList *list) {
-  ObjectList *current = list;
+  ObjectList *current = list->next;
+
+  if (current == NULL) {
+    printf(RESET "\t(empty)\n");
+    return;
+  }
+
   while (current != NULL) {
     printf(NOTICE "> `%s`\n", current->self);
     current = current->next;
@@ -123,7 +132,13 @@ void list_print(ObjectList *list) {
 }
 
 void list_print_interests(int externalfd, ObjectList *list) {
-  ObjectList *current = list;
+  ObjectList *current = list->next;
+
+  if (current == NULL) {
+    printf(RESET "\t(empty)\n");
+    return;
+  }
+
   while (current != NULL) {
     printf(RESET "\t- `%s`\n", current->self);
 
@@ -144,7 +159,11 @@ void list_print_interests(int externalfd, ObjectList *list) {
 }
 
 ObjectList *list_find(ObjectList *list, Object object) {
-  ObjectList *current = list;
+  ObjectList *current = list->next;
+
+  // Also add NULL check on object
+  if (object == NULL)
+    return NULL;
 
   while (current != NULL) {
     if (current->self != NULL && strcmp(current->self, object) == 0) {

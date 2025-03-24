@@ -16,7 +16,7 @@ void ndn_safe(Node *, char *ip, char *tcp);
 void ndn_interest(Node *, Object, int fd);
 
 // Node has the object
-void ndn_object(Node *, Object);
+void ndn_object(Node *, Object, int senterfd);
 
 // Node doesn't have the object
 void ndn_noobject(Node *, Object, int senderfd);
