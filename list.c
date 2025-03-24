@@ -90,24 +90,17 @@ void list_remove(ObjectList *list, Object object) {
   }
 }
 
-void list_clear(ObjectList *list) {
-  ObjectList *current = list;
-  while (current != NULL) {
-    current->by_size = 0;
-    free(current->by);
-    current->to_size = 0;
-    free(current->to);
-    current = current->next;
-  }
-}
-
 void list_destroy(ObjectList *list) {
   ObjectList *current = list;
   while (current != NULL) {
     ObjectList *next = current->next;
-    free(current->self);
-    free(current->by);
-    free(current->to);
+
+    if (current->self)
+      free(current->self);
+    if (current->by)
+      free(current->by);
+    if (current->to)
+      free(current->to);
     free(current);
     current = next;
   }
@@ -124,7 +117,7 @@ void list_print(ObjectList *list) {
 void list_print_interests(int externalfd, ObjectList *list) {
   ObjectList *current = list;
   while (current != NULL) {
-    printf(RESET "\t- `%s` [requested by / requested from]\n", current->self);
+    printf(RESET "\t- `%s`\n", current->self);
 
     for (usize i = 0; i < current->by_size; i++) {
       printf("\t  -> fd_%02d%s", current->by[i],

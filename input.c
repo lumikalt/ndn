@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
+#include <time.h>
 #include <unistd.h>
 
 // Unified function that handles both network I/O and user input
@@ -143,7 +144,7 @@ void ndn_run(Node *node) {
           ndn_node_exit(node, i);
           // Close the socket and remove from fd set
           close(i);
-          // FD_CLR(i, &master_fds);
+          FD_CLR(i, &master_fds); // Make sure to clear it from master_fds
 
           // Recalculate max_fd if needed
           if (i == max_fd) {
@@ -254,6 +255,12 @@ void ndn_run(Node *node) {
               if (sscanf(search_start, "OBJECT %100s", object) == 1) {
                 printf(NOTICE "Processing OBJECT for object %s\n", object);
                 ndn_object(node, object);
+
+                if (node->current_retrieval != NULL &&
+                    strcmp(node->current_retrieval, object) == 0) {
+                  node->retrieval_done = true;
+                }
+
                 processed_command = true;
               } else {
                 fprintf(stderr, ERR "Invalid OBJECT format\n");
@@ -315,6 +322,32 @@ void ndn_run(Node *node) {
           max_fd = node->external->fd;
         }
       }
+    }
+
+    // Check current retrieval request timeout
+    if (node->current_retrieval != NULL) {
+      time_t current_time = time(NULL);
+      int elapsed = current_time - node->retrieval_start_time;
+
+      // Check if object has been received
+      if (node->retrieval_done) {
+        printf("\b\b" OK "Object `%s` found after %d seconds\n",
+               node->current_retrieval, elapsed);
+        free(node->current_retrieval);
+        node->current_retrieval = NULL;
+        node->retrieval_done = false;
+      }
+      // Check if timeout expired
+      else if (elapsed >= node->retrieval_timeout) {
+        printf(ERR "Timeout reached waiting for '%s'\n",
+               node->current_retrieval);
+        free(node->current_retrieval);
+        node->current_retrieval = NULL;
+        node->retrieval_done = false;
+      }
+
+      printf(YELLOW "> ");
+      fflush(stdout);
     }
   }
 
@@ -442,6 +475,36 @@ void process_user_input(Node *node, char *input) {
     ndn_delete(node, name);
 
     printf(OK "Deleted object `%s`\n", name);
+    return;
+  }
+  //----------
+
+  //---retrieve---
+  if ((sscanf(input, "retrieve %100s%n", name, &pos) == 1 &&
+       input[pos] == '\0') ||
+      (sscanf(input, "r %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
+    if (!is_valid_name(name)) {
+      fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
+      return;
+    }
+
+    ndn_retrieve(node, name);
+
+    return;
+  }
+  //----------
+
+  //---show names---
+  if ((strcmp(input, "show names") == 0) || (strcmp(input, "sn") == 0)) {
+    ndn_show_names(node);
+    return;
+  }
+  //----------
+
+  //---show interest table---
+  if ((strcmp(input, "show interest table") == 0) ||
+      (strcmp(input, "si") == 0)) {
+    ndn_show_interest_table(node);
     return;
   }
   //----------

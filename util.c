@@ -88,6 +88,11 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   node->in_net = false;
   node->net = 1000;
 
+  node->current_retrieval = NULL;
+  node->retrieval_start_time = 0;
+  node->retrieval_timeout = 10;
+  node->retrieval_done = false;
+
   // create TCP listener
 
   int listener_fd;
@@ -130,7 +135,6 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   printf(OK "TCP server listening on all interfaces, port %s\n", tcp);
   node->listener_fd = listener_fd;
 
-  // No thread creation - just return the node
   printf(OK "Node initialized, starting main loop...\n");
 
   node->exit = false;

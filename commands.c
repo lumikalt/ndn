@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 void ndn_help() {
@@ -29,6 +30,9 @@ void ndn_help() {
 }
 
 void ndn_join(Node *node, u16 net) {
+  char *node_ip = NULL;
+  char *node_tcp = NULL;
+
   if (node->in_net) {
     fprintf(stderr, ERR "Already in a network\n");
     return;
@@ -41,6 +45,7 @@ void ndn_join(Node *node, u16 net) {
     fprintf(stderr, ERR "Failed to get the network list\n");
     return;
   }
+
   if (network->size == 0) {
     clean_nodelist(network);
     ndn_register(node);
@@ -48,6 +53,13 @@ void ndn_join(Node *node, u16 net) {
     printf(OK "Lone node, waiting for others\n");
 
     // Set self as external
+    if (node->external->ip) {
+      free(node->external->ip);
+    }
+    if (node->external->tcp) {
+      free(node->external->tcp);
+    }
+
     node->external->ip = strdup(node->ip);
     node->external->tcp = strdup(node->tcp);
     node->external->fd = -1;
@@ -57,8 +69,8 @@ void ndn_join(Node *node, u16 net) {
 
   // Connect to a random node in the network
   int node_id = rand() % network->size;
-  char *node_ip = strdup(network->ip[node_id]);
-  char *node_tcp = strdup(network->tcp[node_id]);
+  node_ip = strdup(network->ip[node_id]);
+  node_tcp = strdup(network->tcp[node_id]);
 
   clean_nodelist(network);
 
@@ -101,6 +113,13 @@ void ndn_join(Node *node, u16 net) {
 
   printf(NOTICE "Connected to external %s:%s\n", node_ip, node_tcp);
   freeaddrinfo(res);
+
+  if (node->external->ip) {
+    free(node->external->ip);
+  }
+  if (node->external->tcp) {
+    free(node->external->tcp);
+  }
 
   node->external->ip = node_ip;
   node->external->tcp = node_tcp;
@@ -283,7 +302,7 @@ void ndn_create(Node *node, const char *name) {
 void ndn_delete(Node *node, const char *name) {
   printf(NOTICE "Deleting object %s\n", name);
 
-  list_remove(node->objects, (char *)name);
+  list_remove(node->objects, (Object)name);
 }
 
 void ndn_retrieve(Node *node, const char *name) {
@@ -295,9 +314,56 @@ void ndn_retrieve(Node *node, const char *name) {
     return;
   }
 
+  // Check if we have the object in cache
+  for (usize i = 0; i < node->cache_count; i++) {
+    usize pos = (node->cache_head + i) % node->cache_size;
+    if (node->cache[pos] && strcmp(node->cache[pos], name) == 0) {
+      printf(OK "Found in cache\n");
+      return;
+    }
+  }
+
   printf(NOTICE "Not in node, requesting to adjacent nodes\n");
 
-  // TODO: Send interest to adjacent nodes
+  // Send interest to adjacent nodes
+
+  // Prepare the INTEREST message
+  list_add(node->interests, (Object)name, -1, 0);
+  char buffer[128];
+  snprintf(buffer, sizeof(buffer), "INTEREST %s\n", name);
+
+  // Send the INTEREST message to all non-safe nodes
+  int external_fd = node->external->fd;
+  if (external_fd != -1) {
+    if (write(external_fd, buffer, strlen(buffer)) < 0) {
+      perror(ERR "write");
+    }
+    list_add(node->interests, (Object)name, 0, external_fd);
+  }
+
+  for (usize i = 0; i < node->internal_index; i++) {
+    if (node->internal[i]->fd == -1 || node->internal[i]->fd == external_fd) {
+      continue;
+    }
+
+    if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
+      perror(ERR "write");
+    }
+    list_add(node->interests, (Object)name, 0, i);
+  }
+
+  printf(OK "Interest sent\n");
+
+  // Set up a retrieval request with timeout
+  time_t start_time = time(NULL);
+  node->current_retrieval = strdup(name);
+  node->retrieval_start_time = start_time;
+  node->retrieval_timeout = 10; // 10 seconds timeout
+
+  printf(NOTICE "Waiting for responses (timeout: %d seconds)\n",
+         node->retrieval_timeout);
+
+  // Return to main loop - we'll check for the response there
 }
 
 void ndn_show_topology(Node *node) {
@@ -339,7 +405,7 @@ void ndn_show_names(Node *node) {
 }
 
 void ndn_show_interest_table(Node *node) {
-  printf(NOTICE "Interests:\n");
+  printf(NOTICE "Interests: [requested by / requested from]\n");
   list_print_interests(node->external->fd, node->interests);
 }
 
@@ -408,8 +474,10 @@ void ndn_leave(Node *node) {
   node->internal_index = 0;
 
   // Clear objects & interests
-  list_clear(node->objects);
-  list_clear(node->interests);
+  list_destroy(node->objects);
+  list_destroy(node->interests);
+  node->objects = list_create();
+  node->interests = list_create();
 
   // Reset network state
   node->in_net = false;

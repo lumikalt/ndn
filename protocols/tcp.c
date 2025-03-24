@@ -200,6 +200,10 @@ void ndn_interest(Node *node, Object object, int fd) {
       continue;
     }
 
+    if (node->internal[i]->fd == -1 || node->internal[i]->fd == fd) {
+      continue;
+    }
+
     if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
       perror("\n" ERR "writing INTEREST");
     }
@@ -226,20 +230,14 @@ void ndn_object(Node *node, Object object) {
   // Check if we have an interest in this object
   interest = list_find(node->interests, object);
   if (interest == NULL) {
-    printf(NOTICE "Not interested in this object\n");
+    printf(NOTICE "A Not interested in this object\n");
     return;
   }
-
-  bool external_interest = true;
 
   // We have an interest in this object
   for (usize i = 0; i < interest->by_size; i++) {
     if (interest->by[i] == -1) {
       printf(OK "Object '%s' found for our own request\n", object);
-
-      list_add(node->objects, object, 0, 0);
-
-      external_interest = false;
     } else {
       printf(NOTICE "Sending fd_%02d this object... ", interest->by[i]);
 
@@ -254,10 +252,8 @@ void ndn_object(Node *node, Object object) {
 
   list_remove(node->interests, object);
 
-  if (external_interest) { // all interests aren't our own, must cache
-    cache_add(node, object);
-    printf(OK "Cached object\n");
-  }
+  cache_add(node, object);
+  printf(OK "Cached object\n");
 }
 
 void ndn_noobject(Node *node, Object object, int senderfd) {
@@ -405,8 +401,12 @@ void ndn_exit__ext(Node *node) {
     if (node->internal_index == 0) {
       printf(NOTICE "Elevating self to external (lone node state)\n");
 
-      free(node->external->ip);
-      free(node->external->tcp);
+      if (node->external->ip) {
+        free(node->external->ip);
+      }
+      if (node->external->tcp) {
+        free(node->external->tcp);
+      }
 
       node->external->fd = -1;
       node->external->ip = strdup(node->ip);
