@@ -68,6 +68,8 @@ void ndn_join(Node *node, u16 net) {
   }
 
   // Connect to a random node in the network
+  // Reseed the random number generator
+  srand(time(NULL));
   int node_id = rand() % network->size;
   node_ip = strdup(network->ip[node_id]);
   node_tcp = strdup(network->tcp[node_id]);
