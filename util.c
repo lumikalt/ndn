@@ -216,6 +216,10 @@ void clean_node(Node *node) {
   if (node->listener_fd != -1)
     close(node->listener_fd);
 
+  if (node->current_retrieval) {
+    free(node->current_retrieval);
+  }
+
   free(node);
 }
 

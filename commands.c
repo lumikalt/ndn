@@ -12,6 +12,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <errno.h>
 
 void ndn_help() {
   printf(NOTICE
@@ -338,7 +339,12 @@ void ndn_retrieve(Node *node, const char *name) {
   int external_fd = node->external->fd;
   if (external_fd != -1) {
     if (write(external_fd, buffer, strlen(buffer)) < 0) {
-      perror(ERR "write");
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        // Socket buffer full, not fatal
+        printf(WARN "Socket buffer full, continuing anyway\n");
+      } else {
+        perror(ERR "write");
+      }
     }
     list_add(node->interests, (Object)name, 0, external_fd);
   }

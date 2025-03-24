@@ -393,7 +393,10 @@ void ndn_exit__ext(Node *node) {
     printf("sent\n");
   } else {
     // We're our own safeguard
-    free(node->safeguard->ip);
+    if (node->safeguard->ip) {
+      free(node->safeguard->ip);
+      node->safeguard->ip = NULL; // Set to NULL after freeing
+    }
     free(node->safeguard->tcp);
     node->safeguard->ip = NULL;
     node->safeguard->tcp = NULL;

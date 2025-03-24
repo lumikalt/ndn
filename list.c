@@ -60,7 +60,15 @@ void list_add(ObjectList *list, Object object, int by, int to) {
     perror(ERR "malloc");
     exit(1);
   }
-  new_node->self = object;
+
+  // Create a copy of the string on the heap
+  new_node->self = strdup(object);
+  if (!new_node->self) {
+    perror(ERR "strdup");
+    free(new_node);
+    exit(1);
+  }
+
   new_node->by = malloc(sizeof(int));
   new_node->by[0] = by;
   new_node->by_size = 1;

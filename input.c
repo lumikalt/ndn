@@ -6,6 +6,7 @@
 #include "util.h"
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -137,8 +138,11 @@ void ndn_run(Node *node) {
             free(last_msgs[i]);
             last_msgs[i] = NULL;
           } else {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+              // Not an error - just no data available now
+              continue;
+            }
             perror(ERR "read");
-            continue;
           }
 
           ndn_node_exit(node, i);
@@ -325,29 +329,69 @@ void ndn_run(Node *node) {
     }
 
     // Check current retrieval request timeout
+    // if (node->current_retrieval != NULL) {
+    //   time_t current_time = time(NULL);
+    //   int elapsed = current_time - node->retrieval_start_time;
+
+    //   Check if object has been received
+    //   if (node->retrieval_done) {
+    //     printf("\b\b" OK "Object `%s` found after %d seconds\n",
+    //            node->current_retrieval, elapsed);
+    //     free(node->current_retrieval);
+    //     node->current_retrieval = NULL;
+    //     node->retrieval_done = false;
+    //   }
+    //   Check if timeout expired
+    //   else if (elapsed >= node->retrieval_timeout) {
+    //     printf(ERR "Timeout reached waiting for '%s'\n",
+    //            node->current_retrieval);
+    //     free(node->current_retrieval);
+    //     node->current_retrieval = NULL;
+    //     node->retrieval_done = false;
+    //   }
+
+    //   printf(YELLOW "> ");
+    //   fflush(stdout);
+    // }
+
+    // Add this section to your main event loop in ndn_run
     if (node->current_retrieval != NULL) {
-      time_t current_time = time(NULL);
-      int elapsed = current_time - node->retrieval_start_time;
+      time_t now = time(NULL);
+      int elapsed = now - node->retrieval_start_time;
 
-      // Check if object has been received
-      if (node->retrieval_done) {
-        printf("\b\b" OK "Object `%s` found after %d seconds\n",
-               node->current_retrieval, elapsed);
-        free(node->current_retrieval);
-        node->current_retrieval = NULL;
-        node->retrieval_done = false;
-      }
-      // Check if timeout expired
-      else if (elapsed >= node->retrieval_timeout) {
-        printf(ERR "Timeout reached waiting for '%s'\n",
-               node->current_retrieval);
-        free(node->current_retrieval);
-        node->current_retrieval = NULL;
-        node->retrieval_done = false;
-      }
+      // Only check once per second to avoid spamming
+      static time_t last_check = 0;
+      if (now != last_check) {
+        last_check = now;
 
-      printf(YELLOW "> ");
-      fflush(stdout);
+        // Check if we've found the object
+        bool found = false;
+        for (usize i = 0; i < node->cache_count; i++) {
+          usize pos = (node->cache_head + i) % node->cache_size;
+          if (node->cache[pos] &&
+              strcmp(node->cache[pos], node->current_retrieval) == 0) {
+            found = true;
+            break;
+          }
+        }
+
+        if (found) {
+          printf(OK "Object '%s' found in cache\n", node->current_retrieval);
+          free(node->current_retrieval);
+          node->current_retrieval = NULL;
+
+          printf(YELLOW "> ");
+          fflush(stdout);
+        } else if (elapsed >= node->retrieval_timeout) {
+          printf(ERR "Timeout after %d seconds waiting for '%s'\n", elapsed,
+                 node->current_retrieval);
+          free(node->current_retrieval);
+          node->current_retrieval = NULL;
+
+          printf(YELLOW "> ");
+          fflush(stdout);
+        }
+      }
     }
   }
 
