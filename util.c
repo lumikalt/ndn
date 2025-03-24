@@ -75,6 +75,14 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
     exit(1);
   }
 
+  // Set default UDP timeout
+  struct timeval tv;
+  tv.tv_sec = 3; // 3 seconds timeout
+  tv.tv_usec = 0;
+  if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+    perror(ERR "setsockopt timeout");
+  }
+
   node->server = malloc(sizeof(Server));
   if (!node->server) {
     perror(ERR "malloc");

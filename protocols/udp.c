@@ -6,6 +6,16 @@
 #include <string.h>
 #include <unistd.h>
 
+void set_udp_timeout(int sockfd, int timeout_sec) {
+  struct timeval tv;
+  tv.tv_sec = timeout_sec;
+  tv.tv_usec = 0;
+
+  if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+    perror(ERR "setsockopt timeout");
+  }
+}
+
 /// Request the list of nodes in the network
 NodeList *ndn_nodes(Node *node) {
   Server *s = node->server;
@@ -23,6 +33,9 @@ NodeList *ndn_nodes(Node *node) {
   char buffer[256];
 
   sprintf(buffer, "NODES %03d", net);
+
+  // Set a 3-second timeout for UDP responses
+  set_udp_timeout(s->fd, 3);
 
   if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
                   s->addr->ai_addrlen)) <= 0) {
@@ -50,7 +63,7 @@ NodeList *ndn_nodes(Node *node) {
 
   if ((n = recvfrom(s->fd, response, 4096, 0, s->addr->ai_addr,
                     &s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, ERR "No response from the server\n");
+    fprintf(stderr, ERR "No response from the server (timeout or error)\n");
     free(response);
     clean_nodelist(nodes);
     return NULL;
@@ -174,5 +187,4 @@ void ndn_unregister(Node *node) {
 
   node->in_net = false;
   node->net = 1000;
-
 }
