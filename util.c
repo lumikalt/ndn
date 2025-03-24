@@ -90,7 +90,7 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
 
   node->current_retrieval = NULL;
   node->retrieval_start_time = 0;
-  node->retrieval_timeout = 10;
+  node->retrieval_timeout = 3600; // 1h, absurdly high for testing
   node->retrieval_done = false;
 
   // create TCP listener

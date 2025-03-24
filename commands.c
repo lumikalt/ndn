@@ -358,7 +358,6 @@ void ndn_retrieve(Node *node, const char *name) {
   time_t start_time = time(NULL);
   node->current_retrieval = strdup(name);
   node->retrieval_start_time = start_time;
-  node->retrieval_timeout = 10; // 10 seconds timeout
 
   printf(NOTICE "Waiting for responses (timeout: %d seconds)\n",
          node->retrieval_timeout);

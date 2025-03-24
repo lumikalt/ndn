@@ -82,7 +82,7 @@ typedef struct Node {
   bool exit;
 
   // Object retrieval
-  Object current_retrieval;     // Name of object currently being retrieved
+  Object current_retrieval;    // Name of object currently being retrieved
   time_t retrieval_start_time; // When the retrieval started
   int retrieval_timeout;       // Timeout in seconds
   bool retrieval_done;         // Flag to signal retrieval completion
