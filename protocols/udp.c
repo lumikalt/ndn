@@ -96,7 +96,7 @@ NodeList *ndn_nodes(Node *node) {
   }
 
   // Use the retry mechanism for sending/receiving
-  char ok_prefix[16];
+  char ok_prefix[17];
   sprintf(ok_prefix, "NODESLIST %03d\n", net);
 
   n = udp_send_with_retry(node, buffer, response, 4096, ok_prefix, 3);

@@ -6,13 +6,13 @@
 #include "util.h"
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <errno.h>
 
 void ndn_help() {
   printf(NOTICE
@@ -381,7 +381,7 @@ void ndn_show_topology(Node *node) {
          node->external->tcp);
   printf(RESET "\tInternals:\n");
   for (usize i = 0; i < node->internal_index; i++) {
-    printf(RESET "\t->%s:%s\n", node->internal[i]->ip, node->internal[i]->tcp);
+    printf(RESET "\t-> %s:%s\n", node->internal[i]->ip, node->internal[i]->tcp);
   }
 }
 
