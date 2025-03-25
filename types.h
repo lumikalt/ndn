@@ -47,15 +47,15 @@ typedef struct {
 typedef char *Object;
 
 typedef struct {
-  int fd;
-  char *msg;
-} FDMsg;
+  int udp_timeout;
+  int tcp_timeout;
+} Config;
 
 // The Node type (everything is here)
 typedef struct Node {
   ObjectList *objects;
   ObjectList *interests;
-  Object *cache;
+  Object *cache; // Circular buffer
   usize cache_size;
   usize cache_head;  // Points to oldest element
   usize cache_count; // Current number of elements
@@ -86,4 +86,6 @@ typedef struct Node {
   time_t retrieval_start_time; // When the retrieval started
   int retrieval_timeout;       // Timeout in seconds
   bool retrieval_done;         // Flag to signal retrieval completion
+
+  Config config;
 } Node;
