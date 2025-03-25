@@ -38,13 +38,10 @@ ssize_t udp_send_with_retry(Node *node, const char *send_buffer,
       continue;
     }
 
-    printf(NOTICE "Request sent, waiting for response (timeout: %ds)\n",
-           timeout_sec);
-
     // Wait for response
     if ((n = recvfrom(s->fd, response_buffer, response_size - 1, 0,
                       s->addr->ai_addr, &s->addr->ai_addrlen)) <= 0) {
-      fprintf(stderr, ERR "No response (timeout or error), retry %d/%d\n",
+      fprintf(stderr, WARN "Retry %d/%d\n",
               retries + 1, max_retries);
       retries++;
       timeout_sec *= 2; // Double timeout for next retry
@@ -100,7 +97,7 @@ NodeList *ndn_nodes(Node *node) {
 
   // Use the retry mechanism for sending/receiving
   char ok_prefix[16];
-  sprintf(ok_prefix, "NODESLIST %03d", net);
+  sprintf(ok_prefix, "NODESLIST %03d\n", net);
 
   n = udp_send_with_retry(node, buffer, response, 4096, ok_prefix, 3);
   if (n <= 0) {
@@ -129,8 +126,23 @@ NodeList *ndn_nodes(Node *node) {
 
   for (usize i = 0; i < newlines; i++) {
     // Every line is in the format IP TCP\n
-    char ip[100], tcp[6];
-    sscanf(string, "%s %s\n", ip, tcp);
+    char ip[100] = {0}; // Initialize arrays to zeros
+    char tcp[6] = {0};
+
+    // Check if sscanf was successful
+    int parsed = sscanf(string, "%99s %5s\n", ip, tcp);
+    if (parsed != 2) {
+      fprintf(stderr, ERR "Failed to parse node entry: '%s'\n",
+              str_escape(string));
+      continue; // Skip this entry
+    }
+
+    // Validate IP and port before continuing
+    if (!is_valid_ip(ip) || !is_valid_port(tcp)) {
+      fprintf(stderr, ERR "Invalid IP/port: %s %s\n", ip, tcp);
+      continue;
+    }
+
     string += strlen(ip) + strlen(tcp) + 2;
 
     nodes->ip[nodes->size] = malloc(strlen(ip) + 1);
@@ -223,8 +235,7 @@ bool ndn_ping_server(Node *node) {
   set_udp_timeout(s->fd, original_timeout.tv_sec);
 
   if (n <= 0) {
-    fprintf(stderr,
-            "\n" ERR "UDP server is not responding after retries\n"            );
+    fprintf(stderr, "\n" ERR "UDP server is not responding after retries\n");
     return false;
   }
 
