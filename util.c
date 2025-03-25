@@ -100,8 +100,6 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
     exit(1);
   }
 
-  printf(OK "UDP server at %s:%s is responding correctly\n", regIP, regUDP);
-
   node->in_net = false;
   node->net = 1000;
 
