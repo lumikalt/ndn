@@ -202,7 +202,7 @@ void ndn_interest(Node *node, Object object, int fd) {
       continue;
     }
 
-    if (node->internal[i]->fd == -1 || node->internal[i]->fd == fd) {
+    if (node->internal[i]->fd == -1 || node->internal[i]->fd == fd || node->internal[i]->fd == node->external->fd) {
       continue;
     }
 
@@ -210,7 +210,7 @@ void ndn_interest(Node *node, Object object, int fd) {
       perror("\n" ERR "writing INTEREST");
     }
 
-    list_add(node->interests, object, 0, i);
+    list_add(node->interests, object, 0, node->internal[i]->fd);
   }
 
   // Ask external
