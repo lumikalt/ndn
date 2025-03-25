@@ -1,5 +1,6 @@
 #include "util.h"
 #include "list.h"
+#include "protocols/udp.h"
 #include "types.h"
 
 #include <netdb.h>
@@ -92,6 +93,14 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   node->server->fd = fd;
   node->server->ip = regIP;
   node->server->udp = regUDP;
+
+  // Test connection with the server before continuing
+  if (!ndn_ping_server(node)) {
+    clean_node(node);
+    exit(1);
+  }
+
+  printf(OK "UDP server at %s:%s is responding correctly\n", regIP, regUDP);
 
   node->in_net = false;
   node->net = 1000;
