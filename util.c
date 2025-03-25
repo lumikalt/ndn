@@ -106,6 +106,7 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   int listener_fd;
   if ((listener_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     perror(ERR "socket");
+    clean_node(node);
     exit(1);
   }
 
@@ -115,6 +116,7 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
                  sizeof(optval)) == -1) {
     perror(ERR "setsockopt");
     close(listener_fd);
+    clean_node(node);
     exit(1);
   }
 
@@ -130,6 +132,7 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
       -1) {
     perror(ERR "bind");
     close(listener_fd);
+    clean_node(node);
     exit(1);
   }
 
@@ -137,6 +140,7 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   if (listen(listener_fd, 5) == -1) {
     perror(ERR "listen");
     close(listener_fd);
+    clean_node(node);
     exit(1);
   }
 

@@ -16,7 +16,6 @@ void set_udp_timeout(int sockfd, int timeout_sec) {
   }
 }
 
-// Add this function to protocols/udp.c
 ssize_t udp_send_with_retry(Node *node, const char *send_buffer,
                             char *response_buffer, size_t response_size,
                             const char *expected_prefix, int max_retries) {
@@ -72,7 +71,6 @@ ssize_t udp_send_with_retry(Node *node, const char *send_buffer,
   return -1;
 }
 
-/// Request the list of nodes in the network
 NodeList *ndn_nodes(Node *node) {
   Server *s = node->server;
   u16 net = node->net;
@@ -101,7 +99,7 @@ NodeList *ndn_nodes(Node *node) {
   }
 
   // Use the retry mechanism for sending/receiving
-  char ok_prefix[15];
+  char ok_prefix[16];
   sprintf(ok_prefix, "NODESLIST %03d", net);
 
   n = udp_send_with_retry(node, buffer, response, 4096, ok_prefix, 3);
@@ -154,12 +152,9 @@ NodeList *ndn_nodes(Node *node) {
   return nodes;
 }
 
-/// Register the node in the network, and check if the server accepted the
-/// node entry.
 void ndn_register(Node *node) {
   char buffer[256];
   char response_buffer[128];
-  Server *s = node->server;
   u16 net = node->net;
 
   sprintf(buffer, "REG %03u %s %s", net, node->ip, node->tcp);
@@ -178,8 +173,6 @@ void ndn_register(Node *node) {
   printf(OK "Successfully registered\n");
 }
 
-/// Unregister the node from the network, and check if the server accepted the
-/// node exit.
 void ndn_unregister(Node *node) {
   char buffer[256];
   char response_buffer[128];
@@ -201,4 +194,41 @@ void ndn_unregister(Node *node) {
 
   node->in_net = false;
   node->net = 1000;
+}
+
+bool ndn_ping_server(Node *node) {
+  Server *s = node->server;
+  char test_buffer[64];
+  char response_buffer[256];
+
+  // Store original timeout for restoration later
+  struct timeval original_timeout;
+  socklen_t timeout_len = sizeof(original_timeout);
+  if (getsockopt(s->fd, SOL_SOCKET, SO_RCVTIMEO, &original_timeout,
+                 &timeout_len) < 0) {
+    perror(ERR "getsockopt failed");
+  }
+
+  // Send an invalid command that we know will get an ERROR response
+  sprintf(test_buffer, "PING");
+
+  printf(NOTICE "Testing connection to UDP server... ");
+
+  // Use the retry mechanism, but we don't care about the specific response
+  // format as long as we get something back
+  ssize_t n = udp_send_with_retry(node, test_buffer, response_buffer,
+                                  sizeof(response_buffer), NULL, 2);
+
+  // Restore original timeout
+  set_udp_timeout(s->fd, original_timeout.tv_sec);
+
+  if (n <= 0) {
+    fprintf(stderr,
+            "\n" ERR "UDP server is not responding after retries\n"            );
+    return false;
+  }
+
+  printf("success\n");
+
+  return true;
 }
