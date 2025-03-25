@@ -16,6 +16,62 @@ void set_udp_timeout(int sockfd, int timeout_sec) {
   }
 }
 
+// Add this function to protocols/udp.c
+ssize_t udp_send_with_retry(Node *node, const char *send_buffer,
+                            char *response_buffer, size_t response_size,
+                            const char *expected_prefix, int max_retries) {
+  Server *s = node->server;
+  ssize_t n;
+  int retries = 0;
+  int timeout_sec = 1; // Start with 1 second timeout
+
+  while (retries < max_retries) {
+    // Set timeout for this attempt
+    set_udp_timeout(s->fd, timeout_sec);
+
+    // Send request
+    if ((n = sendto(s->fd, send_buffer, strlen(send_buffer), 0,
+                    s->addr->ai_addr, s->addr->ai_addrlen)) <= 0) {
+      fprintf(stderr, ERR "Failed to send request (attempt %d/%d)\n",
+              retries + 1, max_retries);
+      retries++;
+      timeout_sec *= 2; // Double timeout for next retry
+      continue;
+    }
+
+    printf(NOTICE "Request sent, waiting for response (timeout: %ds)\n",
+           timeout_sec);
+
+    // Wait for response
+    if ((n = recvfrom(s->fd, response_buffer, response_size - 1, 0,
+                      s->addr->ai_addr, &s->addr->ai_addrlen)) <= 0) {
+      fprintf(stderr, ERR "No response (timeout or error), retry %d/%d\n",
+              retries + 1, max_retries);
+      retries++;
+      timeout_sec *= 2; // Double timeout for next retry
+      continue;
+    }
+
+    // Null-terminate response
+    response_buffer[n] = '\0';
+
+    // Check if response has expected prefix
+    if (expected_prefix && strncmp(response_buffer, expected_prefix,
+                                   strlen(expected_prefix)) != 0) {
+      fprintf(stderr, ERR "Unexpected response format\n");
+      retries++;
+      timeout_sec *= 2;
+      continue;
+    }
+
+    // Success!
+    return n;
+  }
+
+  fprintf(stderr, ERR "Max retries (%d) reached, giving up\n", max_retries);
+  return -1;
+}
+
 /// Request the list of nodes in the network
 NodeList *ndn_nodes(Node *node) {
   Server *s = node->server;
@@ -37,17 +93,6 @@ NodeList *ndn_nodes(Node *node) {
   // Set a 3-second timeout for UDP responses
   set_udp_timeout(s->fd, 3);
 
-  if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
-                  s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, ERR "Failed to send the nodes request\n");
-    clean_nodelist(nodes);
-    return NULL;
-  }
-
-  printf(NOTICE "Requested nodes for net %03d\n", net);
-
-  /* Wait for the OK */
-
   char *response = calloc(4096, sizeof(char));
   if (!response) {
     perror(ERR "calloc");
@@ -55,28 +100,19 @@ NodeList *ndn_nodes(Node *node) {
     return NULL;
   }
 
-  char ok[15];
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-overflow"
-  sprintf(ok, "NODESLIST %03d\n", net);
-#pragma GCC diagnostic pop
+  // Use the retry mechanism for sending/receiving
+  char ok_prefix[15];
+  sprintf(ok_prefix, "NODESLIST %03d", net);
 
-  if ((n = recvfrom(s->fd, response, 4096, 0, s->addr->ai_addr,
-                    &s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, ERR "No response from the server (timeout or error)\n");
+  n = udp_send_with_retry(node, buffer, response, 4096, ok_prefix, 3);
+  if (n <= 0) {
+    fprintf(stderr, ERR "Failed to get nodes list after retries\n");
     free(response);
     clean_nodelist(nodes);
     return NULL;
   }
 
-  if (strncmp(response, ok, 14) != 0) {
-    fprintf(stderr, ERR "Server response did not match the spec\n");
-    free(response);
-    clean_nodelist(nodes);
-    return NULL;
-  }
-
-  char *string = response + 14;
+  char *string = response + strlen(ok_prefix);
 
   printf(NOTICE "Parsing nodes\n");
 
@@ -121,8 +157,8 @@ NodeList *ndn_nodes(Node *node) {
 /// Register the node in the network, and check if the server accepted the
 /// node entry.
 void ndn_register(Node *node) {
-  ssize_t n;
   char buffer[256];
+  char response_buffer[128];
   Server *s = node->server;
   u16 net = node->net;
 
@@ -130,23 +166,13 @@ void ndn_register(Node *node) {
 
   printf(NOTICE "Requesting registration in net %03u\n", net);
 
-  if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
-                  s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, ERR "Failed to send the join request\n");
+  // Use the retry mechanism
+  ssize_t n = udp_send_with_retry(node, buffer, response_buffer,
+                                  sizeof(response_buffer), "OKREG", 3);
+
+  if (n <= 0) {
+    fprintf(stderr, ERR "Failed to register after multiple attempts\n");
     return;
-  }
-
-  /* Wait for the OK */
-
-  const char *ok = "OKREG";
-  char response[6];
-
-  if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
-                    &s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, ERR "No response from the server\n");
-    return;
-  } else if (strncmp(response, ok, 6) != 0) {
-    fprintf(stderr, ERR "Server refused the registration\n");
   }
 
   printf(OK "Successfully registered\n");
@@ -155,32 +181,20 @@ void ndn_register(Node *node) {
 /// Unregister the node from the network, and check if the server accepted the
 /// node exit.
 void ndn_unregister(Node *node) {
-  ssize_t n;
   char buffer[256];
-  Server *s = node->server;
+  char response_buffer[128];
 
   sprintf(buffer, "UNREG %03zu %s %s", node->net, node->ip, node->tcp);
 
-  if ((n = sendto(s->fd, buffer, strlen(buffer), 0, s->addr->ai_addr,
-                  s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, ERR "Failed to send unregistration request\n");
+  printf(NOTICE "Requesting unregistration\n");
+
+  // Use the retry mechanism
+  ssize_t n = udp_send_with_retry(node, buffer, response_buffer,
+                                  sizeof(response_buffer), "OKUNREG", 3);
+
+  if (n <= 0) {
+    fprintf(stderr, ERR "Failed to unregister after multiple attempts\n");
     return;
-  }
-
-  printf(NOTICE "Requested unregistration\n");
-
-  /* Wait for the OK */
-
-  const char *ok = "OKUNREG";
-  char response[8];
-
-  if ((n = recvfrom(s->fd, response, sizeof(response), 0, s->addr->ai_addr,
-                    &s->addr->ai_addrlen)) <= 0) {
-    fprintf(stderr, ERR "No response from the server\n");
-    return;
-  } else if (strncmp(response, ok, 8) != 0) {
-    fprintf(stderr, ERR "Server refused the connection to net %03zu\n",
-            node->net);
   }
 
   printf(OK "Successfully left network %zu\n", node->net);
