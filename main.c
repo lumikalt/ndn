@@ -1,3 +1,4 @@
+#include "commands.h"
 #include "input.h"
 #include "util.h"
 
@@ -10,6 +11,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+Node *node;
 
 int main(int argc, char *argv[]) {
   if (argc < 4) {
@@ -33,11 +36,29 @@ int main(int argc, char *argv[]) {
   char *regIP = argc > 4 ? argv[4] : "193.136.138.142";
   char *regUDP = argc > 5 ? argv[5] : "59000";
 
-  Node *node = init_node(cache, IP, TCP, regIP, regUDP);
+  node = init_node(cache, IP, TCP, regIP, regUDP);
 
   // Start the single-threaded event loop
   ndn_run(node);
 
   // We only get here if ndn_run returns, which happens on exit
   return 0;
+}
+
+// Signal handler function
+void handle_sigint(int sig) {
+  printf("\n" NOTICE "Caught signal %d (Ctrl+C), cleaning up...\n", sig);
+
+  if (node) {
+    // Leave network gracefully if we're connected
+    if (node->in_net) {
+      ndn_leave(node);
+    }
+
+    // Clean up resources
+    clean_node(node);
+  }
+
+  printf(OK "Cleanup complete, exiting\n");
+  exit(0);
 }
