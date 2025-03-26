@@ -5,6 +5,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,24 @@
 #include <unistd.h>
 
 Node *node;
+
+// Signal handler function
+void handle_sigint(int sig) {
+  printf("\n" NOTICE "Caught signal %d (Ctrl+C), cleaning up...\n", sig);
+
+  if (node) {
+    // Leave network gracefully if we're connected
+    if (node->in_net) {
+      ndn_leave(node);
+    }
+
+    // Clean up resources
+    clean_node(node);
+  }
+
+  printf(OK "Cleanup complete, exiting\n");
+  exit(0);
+}
 
 int main(int argc, char *argv[]) {
   if (argc < 4) {
@@ -38,27 +57,22 @@ int main(int argc, char *argv[]) {
 
   node = init_node(cache, IP, TCP, regIP, regUDP);
 
+  // Set up signal handler for Ctrl-C
+  struct sigaction sa;
+  sa.sa_handler = handle_sigint;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+
+  // Register signal handler for SIGINT (Ctrl+C)
+  sigaction(SIGINT, &sa, NULL);
+
+  // Also handle SIGTERM for good measure
+  sigaction(SIGTERM, &sa, NULL);
+
   // Start the single-threaded event loop
   ndn_run(node);
 
-  // We only get here if ndn_run returns, which happens on exit
+  ndn_run(node);
+
   return 0;
-}
-
-// Signal handler function
-void handle_sigint(int sig) {
-  printf("\n" NOTICE "Caught signal %d (Ctrl+C), cleaning up...\n", sig);
-
-  if (node) {
-    // Leave network gracefully if we're connected
-    if (node->in_net) {
-      ndn_leave(node);
-    }
-
-    // Clean up resources
-    clean_node(node);
-  }
-
-  printf(OK "Cleanup complete, exiting\n");
-  exit(0);
 }
