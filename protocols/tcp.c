@@ -321,8 +321,8 @@ void ndn_exit__ext(Node *node);
 
 void ndn_node_exit(Node *node, int fd) {
   // Remove this node from all interests
-  ObjectList *prev = node->interests;  // Start with sentinel node
-  ObjectList *interest = prev->next; // Skip sentinel node
+  ObjectList *prev = node->interests; // Start with sentinel node
+  ObjectList *interest = prev->next;  // Skip sentinel node
 
   while (interest != NULL) {
     ObjectList *next_interest = interest->next;

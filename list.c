@@ -101,14 +101,14 @@ void list_remove(ObjectList *list, Object object) {
   ObjectList *current = list;
 
   while (current->next != NULL) {
-    if (current->next->self == object) {
+    // Use strcmp to compare string content instead of comparing pointers
+    if (strcmp(current->next->self, object) == 0) {
       // Remove the node after current
       ObjectList *to_remove = current->next;
       current->next = to_remove->next;
 
-      // Free the node's resources
-      if (to_remove->self)
-        free(to_remove->self);
+      // Free resources
+      free(to_remove->self);
       if (to_remove->response)
         free(to_remove->response);
       if (to_remove->waiting)
