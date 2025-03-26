@@ -389,7 +389,7 @@ void ndn_retrieve(Node *node, const char *name) {
   }
 
   // Save current retrieval
-  node->current_retrieval = strdup(name);
+  node->current_retrieval = (Object)name;
   node->retrieval_start_time = time(NULL);
 
   // Prepare the INTEREST message

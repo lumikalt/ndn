@@ -1,5 +1,4 @@
 #include "tcp.h"
-#include "../commands.h"
 #include "../util.h"
 
 #include <netdb.h>
@@ -265,88 +264,6 @@ void ndn_object(Node *node, Object object, int senterfd) {
   list_remove(node->interests, object);
 }
 
-// void ndn_noobject(Node *node, Object object, int senderfd) {
-//   printf(NOTICE "Received NOOBJECT for object %s\n", object);
-
-//   ObjectList *interest = list_find(node->interests, object);
-//   if (interest == NULL) {
-//     printf(NOTICE "Not interested in this object\n");
-//     return;
-//   }
-
-//   // Mark ALL instances of this sender as -1 in the 'to' array
-//   bool found_sender = false;
-//   for (usize i = 0; i < interest->to_size; i++) {
-//     if (interest->to[i] == senderfd) {
-//       interest->to[i] = -1;
-//       found_sender = true;
-//       // DON'T break here - keep checking for duplicates
-//     }
-//   }
-
-//   if (!found_sender) {
-//     printf(NOTICE "Sender not found in interest table\n");
-//   }
-
-//   // Now check if all entries are -1 (or if there are no entries)
-//   bool all_responded = true;
-//   for (usize i = 0; i < interest->to_size; i++) {
-//     if (interest->to[i] != -1) {
-//       all_responded = false;
-//       break;
-//     }
-//   }
-
-//   // If not all nodes have responded yet, wait for more responses
-//   if (!all_responded && interest->to_size > 0) {
-//     printf(NOTICE "Still waiting for responses from other nodes\n");
-//     for (usize i = 0; i < interest->to_size; i++) {
-//       printf(NOTICE "  fd_%02d\n", interest->to[i]);
-//     }
-//     return;
-//   }
-
-//   // If we're checking for our own retrieval, cancel it immediately
-//   if (node->current_retrieval && strcmp(node->current_retrieval, object) ==
-//   0) {
-//     printf(ERR "Object '%s' not found in network\n",
-//     node->current_retrieval); free(node->current_retrieval);
-//     node->current_retrieval = NULL;
-//     node->retrieval_done = false;
-
-//     // Restore prompt
-//     printf(YELLOW "> ");
-//     fflush(stdout);
-//   }
-
-//   // Rest of function remains the same...
-//   printf(NOTICE "No one has the object, reporting to interested nodes... ");
-
-//   // Write NOOBJECT to all other interests
-//   char buffer[128];
-//   sprintf(buffer, "NOOBJECT %s\n", object);
-
-//   bool self_interest = false;
-
-//   for (usize i = 0; i < interest->by_size; i++) {
-//     if (interest->by[i] == -1) {
-//       self_interest = true;
-//       continue;
-//     }
-
-//     if (write(interest->by[i], buffer, strlen(buffer)) < 0) {
-//       perror("\n" ERR "writing NOOBJECT");
-//     }
-//   }
-
-//   printf("sent\n");
-
-//   // Remove interest after processing all responses
-//   list_remove(node->interests, object);
-
-//   ndn_show_interest_table(node);
-// }
-
 void ndn_noobject(Node *node, Object object, int senderfd) {
   printf(NOTICE "Received NOOBJECT for object %s\n", object);
 
@@ -356,15 +273,45 @@ void ndn_noobject(Node *node, Object object, int senderfd) {
     return;
   }
 
+  // remove this fd from the waiting list
   for (usize i = 0; i < interest->waiting_size; i++) {
-    printf(NOTICE "fd_%02d\n", interest->waiting[i]);
+    if (interest->waiting[i] == senderfd) {
+      for (usize j = i; j < interest->waiting_size - 1; j++) {
+        interest->waiting[j] = interest->waiting[j + 1];
+      }
+      interest->waiting_size--;
+      break;
+    }
   }
 
-  printf(NOTICE "to ^ by v\n");
+  if (interest->waiting_size == 0) {
+    char buffer[128];
+    sprintf(buffer, "NOOBJECT %s\n", object);
 
-  for (usize i = 0; i < interest->response_size; i++) {
-    printf(NOTICE "fd_%02d\n", interest->response[i]);
+    bool self_interest = false;
+
+    printf(NOTICE "Failed to obtain object, propagating... ");
+    for (usize i = 0; i < interest->response_size; i++) {
+      if (interest->response[i] == -1) {
+        self_interest = true;
+        continue;
+      }
+
+      if (write(interest->response[i], buffer, strlen(buffer)) < 0) {
+        perror(ERR "writing NOOBJECT");
+      }
+    }
+    printf("sent\n");
+
+    if (self_interest)
+      printf(ERR "Failed to retrieve: not in network\n");
+
+    list_remove(node->interests, object);
+
+    return;
   }
+
+  printf(NOTICE "Still waiting for responses from other nodes\n");
 }
 
 /* TCP cancelation */

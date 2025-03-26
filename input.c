@@ -209,7 +209,6 @@ void ndn_run(Node *node) {
             if (!memcmp(search_start, "ENTRY", 5)) {
               char ip[16], tcp[6];
               if (sscanf(search_start, "ENTRY %15s %5s", ip, tcp) == 2) {
-                printf(NOTICE "Processing ENTRY from %s:%s\n", ip, tcp);
                 ndn_entry(node, ip, tcp, i);
                 processed_command = true;
               } else {
@@ -234,7 +233,6 @@ void ndn_run(Node *node) {
             else if (!memcmp(search_start, "INTEREST", 8)) {
               char object[101];
               if (sscanf(search_start, "INTEREST %100s", object) == 1) {
-                printf(NOTICE "Processing INTEREST for object %s\n", object);
                 ndn_interest(node, object, i);
                 processed_command = true;
               } else {
@@ -247,7 +245,6 @@ void ndn_run(Node *node) {
             else if (!memcmp(search_start, "OBJECT", 6)) {
               char object[101];
               if (sscanf(search_start, "OBJECT %100s", object) == 1) {
-                printf(NOTICE "Processing OBJECT for object %s\n", object);
                 ndn_object(node, object, i);
 
                 if (node->current_retrieval != NULL &&
@@ -266,10 +263,8 @@ void ndn_run(Node *node) {
             else if (!memcmp(search_start, "NOOBJECT", 8)) {
               char object[101];
               if (sscanf(search_start, "NOOBJECT %100s", object) == 1) {
-                printf(NOTICE "Processing NOOBJECT for object %s\n", object);
                 ndn_show_interest_table(node);
                 ndn_noobject(node, object, i);
-                printf("Done\n");
                 processed_command = true;
               } else {
                 fprintf(stderr, ERR "Invalid NOOBJECT format\n");
