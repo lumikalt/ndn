@@ -17,6 +17,11 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
     exit(1);
   }
 
+  // Initialize file descriptors to -1 right after allocating the node
+  // This prevents uninitialized fd access in clean_node if something fails
+  node->listener_fd = -1;
+  node->server = NULL; // Initialize server to NULL
+
   node->cache_size = cache_size;
   node->cache = calloc(cache_size, sizeof(Object));
   if (!node->cache) {
