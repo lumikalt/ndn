@@ -65,7 +65,6 @@ int main(int argc, char *argv[]) {
 
   // Register signal handler for SIGINT (Ctrl+C)
   sigaction(SIGINT, &sa, NULL);
-
   // Also handle SIGTERM for good measure
   sigaction(SIGTERM, &sa, NULL);
 
