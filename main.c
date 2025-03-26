@@ -17,7 +17,7 @@ Node *node;
 
 // Signal handler function
 void handle_sigint(int sig) {
-  printf("\n" NOTICE "Caught signal %d (Ctrl+C), cleaning up...\n", sig);
+  printf("\n" NOTICE "Caught signal %d, cleaning up...\n", sig);
 
   if (node) {
     // Leave network gracefully if we're connected
