@@ -25,48 +25,69 @@ ssize_t udp_send_with_retry(Node *node, const char *send_buffer,
   int timeout_sec = 1; // Start with 1 second timeout
 
   while (retries < max_retries) {
-    // Set timeout for this attempt
-    set_udp_timeout(s->fd, timeout_sec);
-
     // Send request
     if ((n = sendto(s->fd, send_buffer, strlen(send_buffer), 0,
-                    s->addr->ai_addr, s->addr->ai_addrlen)) <= 0) {
+      s->addr->ai_addr, s->addr->ai_addrlen)) <= 0) {
       fprintf(stderr, ERR "Failed to send request (attempt %d/%d)\n",
               retries + 1, max_retries);
       retries++;
-      timeout_sec *= 2; // Double timeout for next retry
-      continue;
-    }
+    timeout_sec *= 2;
+    continue;
+      }
 
-    // Wait for response
-    if ((n = recvfrom(s->fd, response_buffer, response_size - 1, 0,
-                      s->addr->ai_addr, &s->addr->ai_addrlen)) <= 0) {
-      fprintf(stderr, WARN "Retry %d/%d\n",
-              retries + 1, max_retries);
-      retries++;
-      timeout_sec *= 2; // Double timeout for next retry
-      continue;
-    }
+      // Set up for select()
+      fd_set read_fds;
+      FD_ZERO(&read_fds);
+      FD_SET(s->fd, &read_fds);
 
-    // Null-terminate response
-    response_buffer[n] = '\0';
+      struct timeval tv;
+      tv.tv_sec = timeout_sec;
+      tv.tv_usec = 0;
 
-    // Check if response has expected prefix
-    if (expected_prefix && strncmp(response_buffer, expected_prefix,
-                                   strlen(expected_prefix)) != 0) {
-      fprintf(stderr, ERR "Unexpected response format\n");
-      retries++;
+      int select_ret = select(s->fd + 1, &read_fds, NULL, NULL, &tv);
+
+      if (select_ret == 0) {
+        // Timeout occurred
+        fprintf(stderr, WARN "Timeout, retry %d/%d\n",
+                retries + 1, max_retries);
+        retries++;
+        timeout_sec *= 2;
+        continue;
+      } else if (select_ret < 0) {
+        // Error in select()
+        perror("select");
+        retries++;
+        timeout_sec *= 2;
+        continue;
+      }
+
+      // Data available, receive response
+      socklen_t addr_len = s->addr->ai_addrlen;
+      if ((n = recvfrom(s->fd, response_buffer, response_size - 1, 0,
+        s->addr->ai_addr, &addr_len)) <= 0) {
+        fprintf(stderr, ERR "Failed to receive response (attempt %d/%d)\n",
+                retries + 1, max_retries);
+        retries++;
       timeout_sec *= 2;
       continue;
-    }
+        }
 
-    // Success!
-    return n;
+        // Null-terminate and validate response
+        response_buffer[n] = '\0';
+        if (expected_prefix && strncmp(response_buffer, expected_prefix,
+          strlen(expected_prefix)) != 0) {
+          fprintf(stderr, ERR "Unexpected response format\n");
+        retries++;
+        timeout_sec *= 2;
+        continue;
+          }
+
+          return n;
   }
 
   fprintf(stderr, ERR "Max retries (%d) reached, giving up\n", max_retries);
   return -1;
-}
+                            }
 
 NodeList *ndn_nodes(Node *node) {
   Server *s = node->server;
@@ -206,40 +227,4 @@ void ndn_unregister(Node *node) {
 
   node->in_net = false;
   node->net = 1000;
-}
-
-bool ndn_ping_server(Node *node) {
-  Server *s = node->server;
-  char test_buffer[64];
-  char response_buffer[256];
-
-  // Store original timeout for restoration later
-  struct timeval original_timeout;
-  socklen_t timeout_len = sizeof(original_timeout);
-  if (getsockopt(s->fd, SOL_SOCKET, SO_RCVTIMEO, &original_timeout,
-                 &timeout_len) < 0) {
-    perror(ERR "getsockopt failed");
-  }
-
-  // Send an invalid command that we know will get an ERROR response
-  sprintf(test_buffer, "PING");
-
-  printf(NOTICE "Testing connection to UDP server... ");
-
-  // Use the retry mechanism, but we don't care about the specific response
-  // format as long as we get something back
-  ssize_t n = udp_send_with_retry(node, test_buffer, response_buffer,
-                                  sizeof(response_buffer), NULL, 2);
-
-  // Restore original timeout
-  set_udp_timeout(s->fd, original_timeout.tv_sec);
-
-  if (n <= 0) {
-    fprintf(stderr, "\n" ERR "UDP server is not responding after retries\n");
-    return false;
-  }
-
-  printf("success\n");
-
-  return true;
 }
