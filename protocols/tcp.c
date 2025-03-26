@@ -425,11 +425,12 @@ void ndn_node_exit(Node *node, int fd) {
     return;
   }
 
-  // It's an internal node
-  printf(NOTICE "Internal disconnected\n");
+  // It's an internal node or a node that has this one as safeguard
 
   for (usize i = 0; i < node->internal_index; i++) {
     if (node->internal[i]->fd == fd) {
+      printf(NOTICE "Internal disconnected\n");
+
       free(node->internal[i]->ip);
       free(node->internal[i]->tcp);
       free(node->internal[i]);
@@ -450,12 +451,6 @@ void ndn_node_exit(Node *node, int fd) {
 void ndn_exit__ext(Node *node) {
   printf(NOTICE "External disconnected\n");
 
-  free(node->external->ip);
-  free(node->external->tcp);
-  node->external->ip = NULL;
-  node->external->tcp = NULL;
-  node->external->fd = -1;
-
   for (usize i = 0; i < node->internal_index; i++) {
     if (node->internal[i]->fd == node->external->fd) {
       free(node->internal[i]->ip);
@@ -472,6 +467,12 @@ void ndn_exit__ext(Node *node) {
       break;
     }
   }
+
+  free(node->external->ip);
+  free(node->external->tcp);
+  node->external->ip = NULL;
+  node->external->tcp = NULL;
+  node->external->fd = -1;
 
   // Now there are 2 cases: either we're our own safeguard or not
   if (node->safeguard->fd != -1) {
