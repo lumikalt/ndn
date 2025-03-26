@@ -25,17 +25,6 @@ void ndn_run(Node *node) {
   char buffer[128];
   fd_set master_fds, read_fds;
 
-  char **last_msgs = malloc(sizeof(char *) * 100);
-  if (!last_msgs) {
-    perror(ERR "malloc");
-    exit(1);
-  }
-  usize last_msgs_capacity = 100;
-
-  for (usize i = 0; i < last_msgs_capacity; i++) {
-    last_msgs[i] = NULL;
-  }
-
   // Initialize file descriptor sets for select()
   FD_ZERO(&master_fds);
   FD_SET(listener_fd, &master_fds);
@@ -135,8 +124,8 @@ void ndn_run(Node *node) {
           if (bytes_read == 0) {
             printf("\b\b" MAGENTA "fd_%02d" RESET "\t<disconnected>\n", i);
 
-            free(last_msgs[i]);
-            last_msgs[i] = NULL;
+            free(node->last_msgs[i]);
+            node->last_msgs[i] = NULL;
           } else {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
               // Not an error - just no data available now
@@ -168,33 +157,34 @@ void ndn_run(Node *node) {
           printf("\b\b" MAGENTA "fd_%02d" RESET "\t%s\n", i, escaped);
           free(escaped);
 
-          if (i >= (i64)last_msgs_capacity) {
+          if (i >= (i64)node->last_msgs_capacity) {
             usize new_capacity = i * 2;
             char **new_last_msgs =
-                realloc(last_msgs, new_capacity * sizeof(char *));
+                realloc(node->last_msgs, new_capacity * sizeof(char *));
             if (!new_last_msgs) {
               perror(ERR "realloc");
               exit(1);
             }
-            last_msgs = new_last_msgs;
-            for (usize j = last_msgs_capacity; j < new_capacity; j++) {
-              last_msgs[j] = NULL;
+            node->last_msgs = new_last_msgs;
+            for (usize j = node->last_msgs_capacity; j < new_capacity; j++) {
+              node->last_msgs[j] = NULL;
             }
-            last_msgs_capacity = new_capacity;
+            node->last_msgs_capacity = new_capacity;
           }
 
           // Step 1: Combine existing buffer with new data
           char *combined_buffer;
-          if (last_msgs[i] != NULL) {
+          if (node->last_msgs[i] != NULL) {
             // We have a previous incomplete message, append new data
-            combined_buffer = malloc(strlen(last_msgs[i]) + bytes_read + 1);
+            combined_buffer =
+                malloc(strlen(node->last_msgs[i]) + bytes_read + 1);
             if (!combined_buffer) {
               perror(ERR "malloc");
               exit(1);
             }
-            strcpy(combined_buffer, last_msgs[i]);
+            strcpy(combined_buffer, node->last_msgs[i]);
             strcat(combined_buffer, buffer);
-            free(last_msgs[i]);
+            free(node->last_msgs[i]);
           } else {
             // No previous data, just use the current buffer
             combined_buffer = strdup(buffer);
@@ -301,11 +291,11 @@ void ndn_run(Node *node) {
           // Step 3: Store any remaining incomplete message
           if (*search_start != '\0') {
             // We have an incomplete message
-            last_msgs[i] = strdup(search_start);
+            node->last_msgs[i] = strdup(search_start);
             printf(NOTICE "Stored incomplete message: %s\n", search_start);
           } else {
             // No incomplete message
-            last_msgs[i] = NULL;
+            node->last_msgs[i] = NULL;
           }
 
           free(combined_buffer);
@@ -373,12 +363,6 @@ void ndn_run(Node *node) {
   }
 
   printf(NOTICE "Exiting main loop\n");
-
-  // Clean the last messages
-  for (usize i = 0; i < last_msgs_capacity; i++) {
-    free(last_msgs[i]);
-  }
-  free(last_msgs);
 
   // Leave the network and send all internals the leave message
   ndn_leave(node);

@@ -152,6 +152,13 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   printf(OK "TCP server listening on all interfaces, port %s\n", tcp);
   node->listener_fd = listener_fd;
 
+  node->last_msgs = calloc(100, sizeof(char *));
+  if (!node->last_msgs) {
+    perror(ERR "calloc");
+    exit(1);
+  }
+  node->last_msgs_capacity = 100;
+
   printf(OK "Node initialized, starting main loop...\n");
 
   node->exit = false;
@@ -225,10 +232,15 @@ void clean_node(Node *node) {
   if (node->listener_fd != -1)
     close(node->listener_fd);
 
+  for (usize i = 0; i < node->last_msgs_capacity; i++) {
+    if (node->last_msgs[i])
+      free(node->last_msgs[i]);
+  }
+  if (node->last_msgs)
+    free(node->last_msgs);
   if (node->current_retrieval) {
     free(node->current_retrieval);
   }
-
   free(node);
 }
 

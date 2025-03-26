@@ -76,6 +76,8 @@ typedef struct Node {
 
   // TCP listener
   int listener_fd;
+  char **last_msgs;
+  usize last_msgs_capacity;
 
   // IO handling thread
   pthread_t thread;
