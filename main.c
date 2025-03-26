@@ -68,9 +68,6 @@ int main(int argc, char *argv[]) {
   // Also handle SIGTERM for good measure
   sigaction(SIGTERM, &sa, NULL);
 
-  // Start the single-threaded event loop
-  ndn_run(node);
-
   ndn_run(node);
 
   return 0;
