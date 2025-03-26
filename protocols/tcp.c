@@ -260,6 +260,7 @@ void ndn_object(Node *node, Object object, int senterfd) {
       printf("%02d ", from);
     }
   }
+  printf("\n");
 
   list_remove(node->interests, object);
 }
@@ -298,7 +299,7 @@ void ndn_noobject(Node *node, Object object, int senderfd) {
       }
 
       if (write(interest->response[i], buffer, strlen(buffer)) < 0) {
-        perror(ERR "writing NOOBJECT");
+        perror("\n" ERR "writing NOOBJECT");
       }
     }
     printf("sent\n");
@@ -320,89 +321,51 @@ void ndn_exit__ext(Node *node);
 
 void ndn_node_exit(Node *node, int fd) {
   // Remove this node from all interests
-  ObjectList *interest = node->interests->next; // Skip sentinel node
+  ObjectList *prev = node->interests;  // Start with sentinel node
+  ObjectList *interest = prev->next; // Skip sentinel node
+
   while (interest != NULL) {
     ObjectList *next_interest = interest->next;
     bool remove_interest = false;
 
     // Remove from interests
-    if (interest->waiting && interest->waiting_size > 0) {
-      // Create new compact array without this fd
-      int *new_to = malloc(interest->waiting_size * sizeof(int));
-      if (!new_to) {
-        perror(ERR "malloc");
-        interest = next_interest;
-        continue;
-      }
 
-      usize new_to_size = 0;
-      for (usize i = 0; i < interest->waiting_size; i++) {
-        if (interest->waiting[i] != fd) {
-          new_to[new_to_size++] = interest->waiting[i];
+    // Remove from waiting list (noobject does this)
+    ndn_noobject(node, interest->self, fd);
+
+    // Remove from response list
+    for (usize i = 0; i < interest->response_size; i++) {
+      if (interest->response[i] == fd) {
+        for (usize j = i; j < interest->response_size - 1; j++) {
+          interest->response[j] = interest->response[j + 1];
         }
-      }
-
-      // Replace with new array
-      free(interest->waiting);
-      interest->waiting = new_to;
-      interest->waiting_size = new_to_size;
-
-      // If no more entries, check if we can remove interest
-      if (new_to_size == 0) {
-        // Only remove if nobody requested it
-        if (!interest->response || interest->response_size == 0) {
-          remove_interest = true;
-        }
-      }
-    }
-    if (interest->response && interest->response_size > 0) {
-      // Create new compact array without this fd
-      int *new_by = malloc(interest->response_size * sizeof(int));
-      if (!new_by) {
-        perror(ERR "malloc");
-        interest = next_interest;
-        continue;
-      }
-
-      usize new_by_size = 0;
-      for (usize i = 0; i < interest->response_size; i++) {
-        if (interest->response[i] != fd) {
-          new_by[new_by_size++] = interest->response[i];
-        }
-      }
-
-      // Replace with new array
-      free(interest->response);
-      interest->response = new_by;
-      interest->response_size = new_by_size;
-
-      // If no more entries except possibly our own request (-1),
-      // and we have no nodes to forward to, we can remove this interest
-      if ((new_by_size == 0) || (new_by_size == 1 && new_by[0] == -1)) {
-        if (!interest->waiting || interest->waiting_size == 0) {
-          remove_interest = true;
-
-          // If this was for our own retrieval, cancel it
-          if (node->current_retrieval &&
-              strcmp(node->current_retrieval, interest->self) == 0) {
-            printf(WARN "Canceling retrieval of '%s' due to node disconnect\n",
-                   node->current_retrieval);
-            free(node->current_retrieval);
-            node->current_retrieval = NULL;
-            node->retrieval_done = false;
-
-            // Ensure prompt is restored
-            printf(YELLOW "> ");
-            fflush(stdout);
-          }
-        }
+        interest->response_size--;
+        break;
       }
     }
 
-    if (remove_interest) {
-      list_remove(node->interests, interest->self);
-      printf(NOTICE "Removed interest for '%s' after node disconnect\n",
-             interest->self);
+    // free the interest if no one is interested
+    if (interest->response_size == 0) {
+      if (!prev || !interest)
+        return;
+
+      // Update the previous node's next pointer to skip this node
+      prev->next = interest->next;
+
+      // Free all resources associated with this interest
+      if (interest->self) {
+        free(interest->self);
+      }
+
+      if (interest->waiting) {
+        free(interest->waiting);
+      }
+
+      if (interest->response) {
+        free(interest->response);
+      }
+    } else {
+      prev = interest;
     }
 
     interest = next_interest;
