@@ -1,4 +1,5 @@
 #include "tcp.h"
+#include "../commands.h"
 #include "../util.h"
 
 #include <netdb.h>
@@ -135,7 +136,7 @@ void ndn_interest(Node *node, Object object, int fd) {
 
     sprintf(buffer, "OBJECT %s\n", object);
     if (write(fd, buffer, strlen(buffer)) < 0) {
-      perror("\n" ERR "writing OBJECT");
+      perror(ERR "writing OBJECT");
     }
 
     printf("sent\n");
@@ -152,7 +153,7 @@ void ndn_interest(Node *node, Object object, int fd) {
 
       sprintf(buffer, "OBJECT %s\n", object);
       if (write(fd, buffer, strlen(buffer)) < 0) {
-        perror("\n" ERR "writing OBJECT");
+        perror(ERR "writing OBJECT");
       }
 
       printf("sent\n");
@@ -165,12 +166,14 @@ void ndn_interest(Node *node, Object object, int fd) {
   if (node->external->fd == fd &&
       (node->internal_index == 0 ||
        (node->internal_index == 1 && node->internal[0]->fd == fd))) {
-    printf(NOTICE "No other connections, can't help\n");
+    printf(NOTICE "No other connections, replying... ");
 
     sprintf(buffer, "NOOBJECT %s\n", object);
     if (write(fd, buffer, strlen(buffer)) < 0) {
-      perror("\n" ERR "writing NOOBJECT");
+      perror(ERR "writing NOOBJECT");
     }
+
+    printf("sent\n");
 
     return;
   }
@@ -184,14 +187,15 @@ void ndn_interest(Node *node, Object object, int fd) {
 
   sprintf(buffer, "INTEREST %s\n", object);
 
+  // dont ask it from nodes already waiting for it
+  ObjectList *interest = list_find(node->interests, object);
+
   // Ask all internals
   for (usize i = 0; i < node->internal_index; i++) {
-    // dont ask it from nodes already waiting for it
-    ObjectList *found = list_find(node->interests, object);
     bool found_i = false;
-    if (found) {
-      for (usize j = 0; j < found->to_size; j++) {
-        if (found->to[j] == node->internal[i]->fd) {
+    if (interest) {
+      for (usize j = 0; j < interest->waiting_size; j++) {
+        if (interest->waiting[j] == node->internal[i]->fd) {
           found_i = true;
           break;
         }
@@ -202,12 +206,13 @@ void ndn_interest(Node *node, Object object, int fd) {
       continue;
     }
 
-    if (node->internal[i]->fd == -1 || node->internal[i]->fd == fd || node->internal[i]->fd == node->external->fd) {
+    if (node->internal[i]->fd == -1 || node->internal[i]->fd == fd ||
+        node->internal[i]->fd == node->external->fd) {
       continue;
     }
 
     if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
-      perror("\n" ERR "writing INTEREST");
+      perror(ERR "writing INTEREST");
     }
 
     list_add(node->interests, object, 0, node->internal[i]->fd);
@@ -216,103 +221,149 @@ void ndn_interest(Node *node, Object object, int fd) {
   // Ask external
   if (node->external->fd != fd) {
     if (write(node->external->fd, buffer, strlen(buffer)) < 0) {
-      perror("\n" ERR "writing INTEREST");
+      perror(ERR "writing INTEREST");
     }
+
+    list_add(node->interests, object, 0, node->external->fd);
 
     printf(NOTICE "Sent INTEREST to external\n");
   }
+
+  interest = list_find(node->interests, object);
+  for (usize i = 0; interest && i < interest->waiting_size; i++) {
+    printf(NOTICE "Sent to %d\n", interest->waiting[i]);
+  }
 }
 
-void ndn_object(Node *node, Object object, int fd) {
-  // Check if this is the object we're waiting for
-  if (node->current_retrieval && strcmp(node->current_retrieval, object) == 0) {
-    printf(OK "Received requested object\n");
-    node->retrieval_done = true;
-  }
-
-  // Add to cache
+void ndn_object(Node *node, Object object, int senterfd) {
   cache_add(node, object);
-  printf(OK "Cached object\n");
 
-  // Find the interest for this object
   ObjectList *interest = list_find(node->interests, object);
   if (!interest) {
-    // No interest record found, nothing more to do
     return;
   }
 
-  // Safely forward the object to interested nodes
-  if (interest->by && interest->by_size > 0) {
-    for (usize i = 0; i < interest->by_size; i++) {
-      int from = interest->by[i];
-      if (from == fd || from == -1) {
-        continue; // Don't send back to sender or to self
+  // Send to all interested nodes
+  printf(NOTICE "Forwarding to... ");
+  if (interest->response && interest->response_size > 0) {
+    for (usize i = 0; i < interest->response_size; i++) {
+      int from = interest->response[i];
+      if (from == senterfd || from == -1) {
+        continue;
       }
-
-      printf(NOTICE "Sending fd_%02d this object... ", from);
 
       char buffer[256];
       sprintf(buffer, "OBJECT %s\n", object);
       if (write(from, buffer, strlen(buffer)) < 0) {
-        perror("\n" ERR "writing OBJECT");
-      } else {
-        printf("sent\n");
+        perror(ERR "writing OBJECT");
       }
+
+      printf("%02d ", from);
     }
   }
 
-  // Remove interest
   list_remove(node->interests, object);
 }
 
+// void ndn_noobject(Node *node, Object object, int senderfd) {
+//   printf(NOTICE "Received NOOBJECT for object %s\n", object);
+
+//   ObjectList *interest = list_find(node->interests, object);
+//   if (interest == NULL) {
+//     printf(NOTICE "Not interested in this object\n");
+//     return;
+//   }
+
+//   // Mark ALL instances of this sender as -1 in the 'to' array
+//   bool found_sender = false;
+//   for (usize i = 0; i < interest->to_size; i++) {
+//     if (interest->to[i] == senderfd) {
+//       interest->to[i] = -1;
+//       found_sender = true;
+//       // DON'T break here - keep checking for duplicates
+//     }
+//   }
+
+//   if (!found_sender) {
+//     printf(NOTICE "Sender not found in interest table\n");
+//   }
+
+//   // Now check if all entries are -1 (or if there are no entries)
+//   bool all_responded = true;
+//   for (usize i = 0; i < interest->to_size; i++) {
+//     if (interest->to[i] != -1) {
+//       all_responded = false;
+//       break;
+//     }
+//   }
+
+//   // If not all nodes have responded yet, wait for more responses
+//   if (!all_responded && interest->to_size > 0) {
+//     printf(NOTICE "Still waiting for responses from other nodes\n");
+//     for (usize i = 0; i < interest->to_size; i++) {
+//       printf(NOTICE "  fd_%02d\n", interest->to[i]);
+//     }
+//     return;
+//   }
+
+//   // If we're checking for our own retrieval, cancel it immediately
+//   if (node->current_retrieval && strcmp(node->current_retrieval, object) ==
+//   0) {
+//     printf(ERR "Object '%s' not found in network\n",
+//     node->current_retrieval); free(node->current_retrieval);
+//     node->current_retrieval = NULL;
+//     node->retrieval_done = false;
+
+//     // Restore prompt
+//     printf(YELLOW "> ");
+//     fflush(stdout);
+//   }
+
+//   // Rest of function remains the same...
+//   printf(NOTICE "No one has the object, reporting to interested nodes... ");
+
+//   // Write NOOBJECT to all other interests
+//   char buffer[128];
+//   sprintf(buffer, "NOOBJECT %s\n", object);
+
+//   bool self_interest = false;
+
+//   for (usize i = 0; i < interest->by_size; i++) {
+//     if (interest->by[i] == -1) {
+//       self_interest = true;
+//       continue;
+//     }
+
+//     if (write(interest->by[i], buffer, strlen(buffer)) < 0) {
+//       perror("\n" ERR "writing NOOBJECT");
+//     }
+//   }
+
+//   printf("sent\n");
+
+//   // Remove interest after processing all responses
+//   list_remove(node->interests, object);
+
+//   ndn_show_interest_table(node);
+// }
+
 void ndn_noobject(Node *node, Object object, int senderfd) {
+  printf(NOTICE "Received NOOBJECT for object %s\n", object);
+
   ObjectList *interest = list_find(node->interests, object);
   if (interest == NULL) {
     printf(NOTICE "Not interested in this object\n");
     return;
   }
 
-  // remove sender from interest->to
-  bool all_negative = true;
-  for (usize i = 0; i < interest->to_size; i++) {
-    if (interest->to[i] == senderfd) {
-      interest->to[i] = -1;
-      break;
-    }
-
-    if (interest->to[i] != -1) {
-      all_negative = false;
-    }
+  for (usize i = 0; i < interest->waiting_size; i++) {
+    printf(NOTICE "fd_%02d\n", interest->waiting[i]);
   }
 
-  if (!all_negative)
-    return;
+  printf(NOTICE "to ^ by v\n");
 
-  list_remove(node->interests, object);
-
-  printf(NOTICE "No one has the object, reporting to the interested nodes... ");
-
-  // Write NOOBJECT to all other interests
-  char buffer[128];
-  sprintf(buffer, "NOOBJECT %s\n", object);
-
-  bool self_interest = false;
-
-  for (usize i = 0; i < interest->by_size; i++) {
-    if (interest->by[i] == -1) {
-      self_interest = true;
-      continue;
-    }
-
-    if (write(interest->by[i], buffer, strlen(buffer)) < 0) {
-      perror("\n" ERR "writing NOOBJECT");
-    }
-  }
-
-  printf("sent\n");
-
-  if (self_interest) {
-    printf(ERR "Could not find requested object in net\n");
+  for (usize i = 0; i < interest->response_size; i++) {
+    printf(NOTICE "fd_%02d\n", interest->response[i]);
   }
 }
 
@@ -321,6 +372,97 @@ void ndn_noobject(Node *node, Object object, int senderfd) {
 void ndn_exit__ext(Node *node);
 
 void ndn_node_exit(Node *node, int fd) {
+  // Remove this node from all interests
+  ObjectList *interest = node->interests->next; // Skip sentinel node
+  while (interest != NULL) {
+    ObjectList *next_interest = interest->next;
+    bool remove_interest = false;
+
+    // Remove from "to" array (nodes we forwarded interest to)
+    if (interest->waiting && interest->waiting_size > 0) {
+      // Create new compact array without this fd
+      int *new_to = malloc(interest->waiting_size * sizeof(int));
+      if (!new_to) {
+        perror(ERR "malloc");
+        interest = next_interest;
+        continue;
+      }
+
+      usize new_to_size = 0;
+      for (usize i = 0; i < interest->waiting_size; i++) {
+        if (interest->waiting[i] != fd) {
+          new_to[new_to_size++] = interest->waiting[i];
+        }
+      }
+
+      // Replace with new array
+      free(interest->waiting);
+      interest->waiting = new_to;
+      interest->waiting_size = new_to_size;
+
+      // If no more entries, check if we can remove interest
+      if (new_to_size == 0) {
+        // Only remove if nobody requested it
+        if (!interest->response || interest->response_size == 0) {
+          remove_interest = true;
+        }
+      }
+    }
+
+    // Remove from "by" array (nodes that requested from us)
+    if (interest->response && interest->response_size > 0) {
+      // Create new compact array without this fd
+      int *new_by = malloc(interest->response_size * sizeof(int));
+      if (!new_by) {
+        perror(ERR "malloc");
+        interest = next_interest;
+        continue;
+      }
+
+      usize new_by_size = 0;
+      for (usize i = 0; i < interest->response_size; i++) {
+        if (interest->response[i] != fd) {
+          new_by[new_by_size++] = interest->response[i];
+        }
+      }
+
+      // Replace with new array
+      free(interest->response);
+      interest->response = new_by;
+      interest->response_size = new_by_size;
+
+      // If no more entries except possibly our own request (-1),
+      // and we have no nodes to forward to, we can remove this interest
+      if ((new_by_size == 0) || (new_by_size == 1 && new_by[0] == -1)) {
+        if (!interest->waiting || interest->waiting_size == 0) {
+          remove_interest = true;
+
+          // If this was for our own retrieval, cancel it
+          if (node->current_retrieval &&
+              strcmp(node->current_retrieval, interest->self) == 0) {
+            printf(WARN "Canceling retrieval of '%s' due to node disconnect\n",
+                   node->current_retrieval);
+            free(node->current_retrieval);
+            node->current_retrieval = NULL;
+            node->retrieval_done = false;
+
+            // Ensure prompt is restored
+            printf(YELLOW "> ");
+            fflush(stdout);
+          }
+        }
+      }
+    }
+
+    if (remove_interest) {
+      list_remove(node->interests, interest->self);
+      printf(NOTICE "Removed interest for '%s' after node disconnect\n",
+             interest->self);
+    }
+
+    interest = next_interest;
+  }
+
   // Remove from internals
   for (usize i = 0; i < node->internal_index; i++) {
     if (node->internal[i]->fd == node->external->fd) {
@@ -348,7 +490,13 @@ void ndn_node_exit(Node *node, int fd) {
 
   if (node->safeguard->fd == fd) {
     printf(NOTICE "Safeguard disconnected\n");
-    // Not specified...
+
+    free(node->safeguard->ip);
+    free(node->safeguard->tcp);
+    node->safeguard->ip = NULL;
+    node->safeguard->tcp = NULL;
+    node->safeguard->fd = -1;
+    // The other node will handle this
     return;
   }
 
@@ -421,11 +569,12 @@ void ndn_exit__ext(Node *node) {
     // We're our own safeguard
     if (node->safeguard->ip) {
       free(node->safeguard->ip);
-      node->safeguard->ip = NULL; // Set to NULL after freeing
+      node->safeguard->ip = NULL;
     }
-    free(node->safeguard->tcp);
-    node->safeguard->ip = NULL;
-    node->safeguard->tcp = NULL;
+    if (node->safeguard->tcp) {
+      free(node->safeguard->tcp);
+      node->safeguard->tcp = NULL;
+    }
 
     if (node->internal_index == 0) {
       printf(NOTICE "Elevating self to external (lone node state)\n");
@@ -441,15 +590,54 @@ void ndn_exit__ext(Node *node) {
       node->external->ip = strdup(node->ip);
       node->external->tcp = strdup(node->tcp);
     } else {
+      // Find a valid internal to elevate
+      int valid_internal_count = 0;
+      usize *valid_indices = malloc(node->internal_index * sizeof(usize));
+
+      if (!valid_indices) {
+        perror(ERR "malloc");
+        return;
+      }
+
+      // First, count valid internals and store their indices
+      for (usize i = 0; i < node->internal_index; i++) {
+        if (node->internal[i] && node->internal[i]->fd > 0) {
+          valid_indices[valid_internal_count++] = i;
+        }
+      }
+
+      if (valid_internal_count == 0) {
+        // No valid internals to elevate
+        printf(NOTICE
+               "No valid internal nodes to elevate, becoming lone node\n");
+        free(valid_indices);
+
+        node->external->fd = -1;
+        node->external->ip = strdup(node->ip);
+        node->external->tcp = strdup(node->tcp);
+        return;
+      }
+
+      // Choose a random valid internal to elevate
+      usize rand_idx = rand() % valid_internal_count;
+      usize i = valid_indices[rand_idx];
+      free(valid_indices);
+
       // Choose a random internal to elevate to external
       printf(NOTICE "Elevating random internal to external\n");
 
-      usize i = rand() % node->internal_index;
-
       node->external->fd = node->internal[i]->fd;
-      node->external->ip = node->internal[i]->ip;
-      node->external->tcp = node->internal[i]->tcp;
 
+      // Use strdup to create new copies of the strings
+      if (node->external->ip)
+        free(node->external->ip);
+      if (node->external->tcp)
+        free(node->external->tcp);
+
+      node->external->ip = strdup(node->internal[i]->ip);
+      node->external->tcp = strdup(node->internal[i]->tcp);
+
+      // Now free the internal node
       free(node->internal[i]->ip);
       free(node->internal[i]->tcp);
       free(node->internal[i]);
@@ -464,6 +652,13 @@ void ndn_exit__ext(Node *node) {
 
       printf(NOTICE "Elevated internal %zu to external\n", i);
       printf(NOTICE "Communicating to new external... ");
+
+      // Verify we still have a valid connection before trying to write
+      if (node->external->fd <= 0) {
+        printf(ERR "Selected internal has invalid fd %d\n", node->external->fd);
+        node->external->fd = -1;
+        return;
+      }
 
       char buffer[128];
       sprintf(buffer, "ENTRY %s %s\n", node->ip, node->tcp);

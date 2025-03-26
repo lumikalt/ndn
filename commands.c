@@ -75,6 +75,16 @@ void ndn_join(Node *node, u16 net) {
   node_ip = strdup(network->ip[node_id]);
   node_tcp = strdup(network->tcp[node_id]);
 
+  if (!node_ip || !node_tcp) {
+    perror(ERR "strdup");
+    if (node_ip)
+      free(node_ip);
+    if (node_tcp)
+      free(node_tcp);
+    clean_nodelist(network);
+    return;
+  }
+
   clean_nodelist(network);
 
   printf(NOTICE "External %s:%s chosen, attempting connection\n", node_ip,
@@ -146,8 +156,11 @@ void ndn_join(Node *node, u16 net) {
   if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) <= 0) {
     perror(ERR "read");
     close(external_fd);
-    free(node_ip);
-    free(node_tcp);
+    // Don't free node_ip/node_tcp again, they're already owned by
+    // node->external Just reset the external pointers
+    node->external->ip = NULL;
+    node->external->tcp = NULL;
+    node->external->fd = -1;
     return;
   }
   buffer[n] = '\0';
@@ -168,8 +181,10 @@ void ndn_join(Node *node, u16 net) {
       } else {
         fprintf(stderr, ERR "Invalid SAFE message: %s\n", next_msg);
         close(external_fd);
-        free(node_ip);
-        free(node_tcp);
+        // Don't free node_ip/node_tcp, just reset node->external
+        node->external->ip = NULL;
+        node->external->tcp = NULL;
+        node->external->fd = -1;
         return;
       }
     } else {
@@ -182,8 +197,18 @@ void ndn_join(Node *node, u16 net) {
   if (!safe_found) {
     fprintf(stderr, ERR "No SAFE message received\n");
     close(external_fd);
-    free(node_ip);
-    free(node_tcp);
+
+    // Free memory before nullifying pointers
+    if (node->external->ip) {
+      free(node->external->ip);
+    }
+    if (node->external->tcp) {
+      free(node->external->tcp);
+    }
+
+    node->external->ip = NULL;
+    node->external->tcp = NULL;
+    node->external->fd = -1;
     return;
   }
 
@@ -294,12 +319,24 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
 }
 
 void ndn_create(Node *node, const char *name) {
+  // Check if name is valid
+  if (!is_valid_name((char *)name)) {
+    fprintf(stderr, ERR "Invalid object name '%s'\n", name);
+    return;
+  }
+
+  // Check if object already exists
+  if (list_find(node->objects, (char *)name)) {
+    fprintf(stderr, ERR "Object '%s' already exists\n", name);
+    return;
+  }
+
   printf(NOTICE "Creating object %s\n", name);
 
-  Object object = malloc(strlen(name) + 1);
-  strcpy(object, name);
+  // Add to objects list - make sure this always happens
+  list_add(node->objects, (char *)name, 0, 0);
 
-  list_add(node->objects, object, 0, 0);
+  printf(OK "Created object `%s`\n", name);
 }
 
 void ndn_delete(Node *node, const char *name) {
@@ -328,7 +365,32 @@ void ndn_retrieve(Node *node, const char *name) {
 
   printf(NOTICE "Not in node, requesting to adjacent nodes\n");
 
-  // Send interest to adjacent nodes
+  // Check if we're alone in the network - immediately fail if so
+  bool alone = true;
+
+  // Check if we have any active internal connections
+  for (usize i = 0; i < node->internal_index; i++) {
+    if (node->internal[i] && node->internal[i]->fd > 0) {
+      alone = false;
+      break;
+    }
+  }
+
+  // Check if external is connected and not just self-reference
+  if (node->external->fd > 0) {
+    alone = false;
+  }
+
+  // If we're alone, fail immediately
+  if (alone) {
+    printf(ERR "No other nodes in network, object '%s' cannot be retrieved\n",
+           name);
+    return;
+  }
+
+  // Save current retrieval
+  node->current_retrieval = strdup(name);
+  node->retrieval_start_time = time(NULL);
 
   // Prepare the INTEREST message
   list_add(node->interests, (Object)name, -1, 0);
@@ -357,7 +419,7 @@ void ndn_retrieve(Node *node, const char *name) {
     if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
       perror(ERR "write");
     }
-    list_add(node->interests, (Object)name, 0, i);
+    list_add(node->interests, (Object)name, 0, node->internal[i]->fd);
   }
 
   printf(OK "Interest sent\n");
@@ -412,8 +474,143 @@ void ndn_show_names(Node *node) {
 }
 
 void ndn_show_interest_table(Node *node) {
-  printf(NOTICE "Interests: [requested by / requested from]\n");
-  list_print_interests(node->external->fd, node->interests);
+  printf(NOTICE "Interests - 00 is this node\n\n");
+
+  // Skip the sentinel head node
+  ObjectList *interest = node->interests->next;
+  if (interest == NULL) {
+    printf(RESET "\t(empty)\n");
+    return;
+  }
+
+  // Find longest object name for formatting
+  usize longest_name = 6; // Minimum length for "Object"
+  ObjectList *scan = node->interests->next;
+  while (scan != NULL) {
+    if (scan->self && strlen(scan->self) > longest_name) {
+      longest_name = strlen(scan->self);
+    }
+    scan = scan->next;
+  }
+
+  // Collect all file descriptors we need to display
+  int *fds = NULL;
+  int fds_count = 0;
+  int fds_capacity = 10;
+
+  fds = malloc(fds_capacity * sizeof(int));
+  if (!fds) {
+    perror(ERR "malloc");
+    return;
+  }
+
+  // Always include the self node (00)
+  fds[fds_count++] = -1;
+
+  // Include external node if connected
+  if (node->external->fd != -1) {
+    fds[fds_count++] = node->external->fd;
+  }
+
+  // Include all internal nodes
+  for (usize i = 0; i < node->internal_index; i++) {
+    if (node->internal[i]->fd != -1) {
+      // Check if this fd already exists in our array
+      if (fd_exists_in_array(node->internal[i]->fd, fds, fds_count)) {
+        continue; // Skip duplicates
+      }
+
+      // Check if we need to expand the array
+      if (fds_count >= fds_capacity) {
+        fds_capacity *= 2;
+        fds = realloc(fds, fds_capacity * sizeof(int));
+        if (!fds) {
+          perror(ERR "realloc");
+          return;
+        }
+      }
+
+      fds[fds_count++] = node->internal[i]->fd;
+    }
+  }
+
+  // Print header row
+  printf(CYAN "%-*s |", (int)longest_name, "Object");
+  for (int i = 0; i < fds_count; i++) {
+    if (fds[i] == -1) {
+      printf(" 00 |"); // Self node
+    } else {
+      printf(" %02d |", fds[i]);
+    }
+  }
+  printf(RESET "\n");
+
+  // Print separator
+  for (usize i = 0; i < longest_name; i++)
+    printf("-");
+  printf("-+");
+  for (int i = 0; i < fds_count; i++) {
+    printf("----+");
+  }
+  printf("\n");
+
+  // Print each interest row
+  while (interest != NULL) {
+    if (!interest->self) {
+      interest = interest->next;
+      continue;
+    }
+
+    // Print object name
+    printf(YELLOW "%-*s" RESET " |", (int)longest_name, interest->self);
+
+    // Print status for each file descriptor
+    for (int i = 0; i < fds_count; i++) {
+      int fd = fds[i];
+      bool is_by = false;
+      bool is_to = false;
+
+      // Check if this fd is in the by array (requested by)
+      if (interest->response && interest->response_size > 0) {
+        for (usize j = 0; j < interest->response_size; j++) {
+          if (interest->response[j] == fd) {
+            is_by = true;
+            break;
+          }
+        }
+      }
+
+      // Check if this fd is in the to array (waiting for)
+      if (interest->waiting && interest->waiting_size > 0) {
+        for (usize j = 0; j < interest->waiting_size; j++) {
+          if (interest->waiting[j] == fd) {
+            is_to = true;
+            break;
+          }
+        }
+      }
+
+      // Print appropriate marker
+      if (is_by) {
+        printf(GREEN " r" RESET "  |"); // r = response (requested by)
+      } else if (is_to) {
+        printf(BLUE " w" RESET "  |"); // w = waiting for
+      } else {
+        printf(RESET " c" RESET "  |"); // c = closed (not involved)
+      }
+    }
+    printf(RESET "\n");
+
+    interest = interest->next;
+  }
+
+  // Print legend
+  printf("\nLegend: ");
+  printf(GREEN "r" RESET " = response, ");
+  printf(BLUE "w" RESET " = waiting, ");
+  printf(RESET "c = closed\n");
+
+  free(fds);
 }
 
 void ndn_leave(Node *node) {

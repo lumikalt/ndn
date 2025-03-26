@@ -15,35 +15,35 @@ ObjectList *list_create() {
     exit(1);
   }
   list->self = NULL;
-  list->by = NULL;
-  list->by_size = 0;
-  list->to = NULL;
-  list->to_size = 0;
+  list->response = NULL;
+  list->response_size = 0;
+  list->waiting = NULL;
+  list->waiting_size = 0;
   list->next = NULL;
   return list;
 }
 
-void list_add(ObjectList *list, Object object, int by, int to) {
+void list_add(ObjectList *list, Object object, int response, int waiting) {
   ObjectList *any = list_find(list, object);
   if (any != NULL) {
-    if (by != 0) {
-      any->by_size++;
-      any->by = realloc(any->by, any->by_size * sizeof(int));
-      if (!any->by) {
+    if (response != 0) {
+      any->response_size++;
+      any->response = realloc(any->response, any->response_size * sizeof(int));
+      if (!any->response) {
         perror(ERR "realloc");
         exit(1);
       }
-      any->by[any->by_size - 1] = by;
+      any->response[any->response_size - 1] = response;
     }
 
-    if (to != 0) {
-      any->to_size++;
-      any->to = realloc(any->to, any->to_size * sizeof(int));
-      if (!any->to) {
+    if (waiting != 0) {
+      any->waiting_size++;
+      any->waiting = realloc(any->waiting, any->waiting_size * sizeof(int));
+      if (!any->waiting) {
         perror(ERR "realloc");
         exit(1);
       }
-      any->to[any->to_size - 1] = to;
+      any->waiting[any->waiting_size - 1] = waiting;
     }
 
     return;
@@ -68,12 +68,31 @@ void list_add(ObjectList *list, Object object, int by, int to) {
     exit(1);
   }
 
-  new_node->by = malloc(sizeof(int));
-  new_node->by[0] = by;
-  new_node->by_size = 1;
-  new_node->to = malloc(sizeof(int));
-  new_node->to[0] = to;
-  new_node->to_size = 1;
+  new_node->response = malloc(sizeof(int));
+  if (!new_node->response) {
+    perror(ERR "malloc");
+    free(new_node->self);
+    free(new_node);
+    exit(1);
+  }
+  new_node->response_size = 0;
+  if (response != 0) {
+    new_node->response[0] = response;
+    new_node->response_size = 1;
+  }
+  new_node->waiting = malloc(sizeof(int));
+  if (!new_node->waiting) {
+    perror(ERR "malloc");
+    free(new_node->response);
+    free(new_node->self);
+    free(new_node);
+    exit(1);
+  }
+  new_node->waiting_size = 0;
+  if (waiting != 0) {
+    new_node->waiting[0] = waiting;
+    new_node->waiting_size = 1;
+  }
   new_node->next = NULL;
   current->next = new_node;
 }
@@ -90,10 +109,10 @@ void list_remove(ObjectList *list, Object object) {
       // Free the node's resources
       if (to_remove->self)
         free(to_remove->self);
-      if (to_remove->by)
-        free(to_remove->by);
-      if (to_remove->to)
-        free(to_remove->to);
+      if (to_remove->response)
+        free(to_remove->response);
+      if (to_remove->waiting)
+        free(to_remove->waiting);
       free(to_remove);
       return;
     }
@@ -108,10 +127,10 @@ void list_destroy(ObjectList *list) {
 
     if (current->self)
       free(current->self);
-    if (current->by)
-      free(current->by);
-    if (current->to)
-      free(current->to);
+    if (current->response)
+      free(current->response);
+    if (current->waiting)
+      free(current->waiting);
     free(current);
     current = next;
   }
@@ -142,16 +161,16 @@ void list_print_interests(int externalfd, ObjectList *list) {
   while (current != NULL) {
     printf(RESET "\t- `%s`\n", current->self);
 
-    for (usize i = 0; i < current->by_size; i++) {
-      printf("\t  -> fd_%02d%s", current->by[i],
-             current->by[i] == externalfd ? " (external)"
-             : current->by[i] == -1       ? " (self)"
-                                          : "");
+    for (usize i = 0; i < current->response_size; i++) {
+      printf("\t  -> fd_%02d%s", current->response[i],
+             current->response[i] == externalfd ? " (external)"
+             : current->response[i] == -1       ? " (self)"
+                                                : "");
     }
 
-    for (usize i = 0; i < current->to_size; i++) {
-      printf("\t  <- fd_%02d%s\n", current->to[i],
-             current->to[i] == -1 ? " (external)" : "");
+    for (usize i = 0; i < current->waiting_size; i++) {
+      printf("\t  <- fd_%02d%s\n", current->waiting[i],
+             current->waiting[i] == -1 ? " (external)" : "");
     }
 
     current = current->next;

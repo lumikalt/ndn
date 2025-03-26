@@ -306,6 +306,15 @@ int is_valid_name(char *name) {
   return 1;
 }
 
+bool fd_exists_in_array(int fd, int *array, int count) {
+  for (int i = 0; i < count; i++) {
+    if (array[i] == fd) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /* */
 
 void grow_internal(Node *node) {

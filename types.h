@@ -85,7 +85,7 @@ typedef struct Node {
   Object current_retrieval;    // Name of object currently being retrieved
   time_t retrieval_start_time; // When the retrieval started
   int retrieval_timeout;       // Timeout in seconds
-  bool retrieval_done;         // Flag to signal retrieval completion
+  int retrieval_done;         // 0 for waiting, 1 for done, 2 for failed
 
   Config config;
 } Node;

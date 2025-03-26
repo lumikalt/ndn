@@ -9,17 +9,17 @@ typedef char *Object;
 typedef struct ObjectList {
   Object self;
   // Who is interested in this object
-  int *by;
-  usize by_size;
+  int *response;
+  usize response_size;
   // Who it was sent to
-  int *to;
-  usize to_size;
+  int *waiting;
+  usize waiting_size;
 
   struct ObjectList *next;
 } ObjectList;
 
 ObjectList *list_create();
-void list_add(ObjectList *list, Object object, int by, int to);
+void list_add(ObjectList *list, Object object, int response, int waiting);
 void list_remove(ObjectList *list, Object object);
 void list_destroy(ObjectList *list);
 void list_print(ObjectList *list);

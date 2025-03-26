@@ -277,7 +277,9 @@ void ndn_run(Node *node) {
               char object[101];
               if (sscanf(search_start, "NOOBJECT %100s", object) == 1) {
                 printf(NOTICE "Processing NOOBJECT for object %s\n", object);
+                ndn_show_interest_table(node);
                 ndn_noobject(node, object, i);
+                printf("Done\n");
                 processed_command = true;
               } else {
                 fprintf(stderr, ERR "Invalid NOOBJECT format\n");
@@ -328,7 +330,6 @@ void ndn_run(Node *node) {
       }
     }
 
-    // Add this section to your main event loop in ndn_run
     if (node->current_retrieval != NULL) {
       time_t now = time(NULL);
       int elapsed = now - node->retrieval_start_time;
@@ -338,22 +339,32 @@ void ndn_run(Node *node) {
       if (now != last_check) {
         last_check = now;
 
-        // Check if object has been received (via flag or cache)
+        // Check if retrieval is complete (success or failure)
         if (node->retrieval_done) {
-          printf("\b\b" OK "Object '%s' found after %d seconds\n",
-                 node->current_retrieval, elapsed);
+          if (node->retrieval_done == 1) {
+            printf(OK "Object '%s' found after %d seconds\n",
+                   node->current_retrieval, elapsed);
+          } else {
+            printf(ERR "Object '%s' not found in network\n",
+                   node->current_retrieval);
+          }
+
+          // Clean up regardless of success/failure
           free(node->current_retrieval);
           node->current_retrieval = NULL;
-          node->retrieval_done = false;
+          node->retrieval_done = 0;
 
+          // Restore prompt
           printf(YELLOW "> ");
           fflush(stdout);
         } else if (elapsed >= node->retrieval_timeout) {
+          // Timed out
           printf(ERR "Timeout after %d seconds waiting for '%s'\n", elapsed,
                  node->current_retrieval);
           free(node->current_retrieval);
           node->current_retrieval = NULL;
 
+          // Restore prompt
           printf(YELLOW "> ");
           fflush(stdout);
         }
@@ -460,7 +471,6 @@ void process_user_input(Node *node, char *input) {
   if ((sscanf(input, "create %100s%n", name, &pos) == 1 &&
        input[pos] == '\0') ||
       (sscanf(input, "c %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
-
     if (!is_valid_name(name)) {
       fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
       return;
@@ -468,7 +478,6 @@ void process_user_input(Node *node, char *input) {
 
     ndn_create(node, name);
 
-    printf(OK "Created object `%s`\n", name);
     return;
   }
   //----------
