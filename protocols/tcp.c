@@ -325,7 +325,7 @@ void ndn_node_exit(Node *node, int fd) {
     ObjectList *next_interest = interest->next;
     bool remove_interest = false;
 
-    // Remove from "to" array (nodes we forwarded interest to)
+    // Remove from interests
     if (interest->waiting && interest->waiting_size > 0) {
       // Create new compact array without this fd
       int *new_to = malloc(interest->waiting_size * sizeof(int));
@@ -355,8 +355,6 @@ void ndn_node_exit(Node *node, int fd) {
         }
       }
     }
-
-    // Remove from "by" array (nodes that requested from us)
     if (interest->response && interest->response_size > 0) {
       // Create new compact array without this fd
       int *new_by = malloc(interest->response_size * sizeof(int));
@@ -410,26 +408,6 @@ void ndn_node_exit(Node *node, int fd) {
     interest = next_interest;
   }
 
-  // Remove from internals
-  for (usize i = 0; i < node->internal_index; i++) {
-    if (node->internal[i]->fd == node->external->fd) {
-      printf(NOTICE "External was also an internal\n");
-
-      free(node->internal[i]->ip);
-      free(node->internal[i]->tcp);
-      free(node->internal[i]);
-      node->internal[i] = NULL;
-
-      // Shift remaining nodes down to fill the gap
-      for (usize k = i; k < node->internal_index - 1; k++) {
-        node->internal[k] = node->internal[k + 1];
-      }
-      node->internal_index--;
-      node->internal[node->internal_index] = NULL;
-      break;
-    }
-  }
-
   if (node->external->fd == fd) {
     ndn_exit__ext(node);
     return;
@@ -447,8 +425,25 @@ void ndn_node_exit(Node *node, int fd) {
     return;
   }
 
-  // It's an internal node, already removed
+  // It's an internal node
   printf(NOTICE "Internal disconnected\n");
+
+  for (usize i = 0; i < node->internal_index; i++) {
+    if (node->internal[i]->fd == fd) {
+      free(node->internal[i]->ip);
+      free(node->internal[i]->tcp);
+      free(node->internal[i]);
+      node->internal[i] = NULL;
+
+      // Shift remaining nodes down to fill the gap
+      for (usize k = i; k < node->internal_index - 1; k++) {
+        node->internal[k] = node->internal[k + 1];
+      }
+      node->internal_index--;
+      node->internal[node->internal_index] = NULL;
+      break;
+    }
+  }
 }
 
 // The external node has disconnected
@@ -460,6 +455,23 @@ void ndn_exit__ext(Node *node) {
   node->external->ip = NULL;
   node->external->tcp = NULL;
   node->external->fd = -1;
+
+  for (usize i = 0; i < node->internal_index; i++) {
+    if (node->internal[i]->fd == node->external->fd) {
+      free(node->internal[i]->ip);
+      free(node->internal[i]->tcp);
+      free(node->internal[i]);
+      node->internal[i] = NULL;
+
+      // Shift remaining nodes down to fill the gap
+      for (usize k = i; k < node->internal_index - 1; k++) {
+        node->internal[k] = node->internal[k + 1];
+      }
+      node->internal_index--;
+      node->internal[node->internal_index] = NULL;
+      break;
+    }
+  }
 
   // Now there are 2 cases: either we're our own safeguard or not
   if (node->safeguard->fd != -1) {
