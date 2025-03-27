@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=gnu99
-LDFLAGS = -lpthread
+CFLAGS = -Wall -Wextra -std=gnu99 -fPIE
+LDFLAGS = -lpthread -pie
 SRC = $(wildcard *.c) $(wildcard protocols/*.c)
 OBJ = $(SRC:.c=.o)
 EXEC = ndn
@@ -14,7 +14,7 @@ $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(EXEC): $(OBJ)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
