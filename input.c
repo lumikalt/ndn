@@ -234,6 +234,7 @@ void ndn_run(Node *node) {
               char object[101];
               if (sscanf(search_start, "INTEREST %100s", object) == 1) {
                 ndn_interest(node, object, i);
+                ndn_show_interest_table(node);
                 processed_command = true;
               } else {
                 fprintf(stderr, ERR "Invalid INTEREST format\n");
@@ -246,6 +247,7 @@ void ndn_run(Node *node) {
               char object[101];
               if (sscanf(search_start, "OBJECT %100s", object) == 1) {
                 ndn_object(node, object, i);
+                ndn_show_interest_table(node);
 
                 if (node->current_retrieval != NULL &&
                     strcmp(node->current_retrieval, object) == 0) {
@@ -263,8 +265,8 @@ void ndn_run(Node *node) {
             else if (!memcmp(search_start, "NOOBJECT", 8)) {
               char object[101];
               if (sscanf(search_start, "NOOBJECT %100s", object) == 1) {
-                ndn_show_interest_table(node);
                 ndn_noobject(node, object, i);
+                ndn_show_interest_table(node);
                 processed_command = true;
               } else {
                 fprintf(stderr, ERR "Invalid NOOBJECT format\n");
@@ -487,6 +489,7 @@ void process_user_input(Node *node, char *input) {
     }
 
     ndn_retrieve(node, name);
+    ndn_show_interest_table(node);
 
     return;
   }

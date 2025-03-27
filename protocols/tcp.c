@@ -1,5 +1,6 @@
 #include "tcp.h"
 #include "../util.h"
+#include "../commands.h"
 
 #include <netdb.h>
 #include <stdio.h>
@@ -326,8 +327,6 @@ void ndn_node_exit(Node *node, int fd) {
 
   while (interest != NULL) {
     ObjectList *next_interest = interest->next;
-    bool remove_interest = false;
-
     // Remove from interests
 
     // Remove from waiting list (noobject does this)
@@ -370,6 +369,7 @@ void ndn_node_exit(Node *node, int fd) {
 
     interest = next_interest;
   }
+  ndn_show_interest_table(node);
 
   if (node->external->fd == fd) {
     ndn_exit__ext(node);
