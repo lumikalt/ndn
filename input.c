@@ -369,6 +369,11 @@ void ndn_run(Node *node) {
 }
 
 bool process_command(Node *node, char *command, int fd) {
+  if (!node->in_net) {
+    fprintf(stderr, ERR "Not in a network\n");
+    return false;
+  }
+
   bool processed = false;
 
   // Process based on command type
