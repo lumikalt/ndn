@@ -110,6 +110,17 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
     exit(1);
   }
 
+  // In util.c, validate IP before binding:
+  if (!is_valid_ip(ip) && strcmp(ip, "0.0.0.0") != 0) {
+    fprintf(stderr, ERR "Invalid IP address: %s\n", ip);
+    exit(1);
+  }
+
+  if (!is_valid_port(tcp)) {
+    fprintf(stderr, ERR "Invalid TCP port: %s\n", tcp);
+    exit(1);
+  }
+
   // Set socket options
   int optval = 1;
   if (setsockopt(listener_fd, SOL_SOCKET, SO_REUSEADDR, &optval,
