@@ -257,7 +257,7 @@ void ndn_run(Node *node) {
     // Add a check for any stored messages that need processing
     for (int i = 0; i <= max_fd; i++) {
       if (i != listener_fd && i != STDIN_FILENO && FD_ISSET(i, &master_fds) &&
-          i < node->last_msgs_capacity && node->last_msgs[i] != NULL) {
+          i < (i64)node->last_msgs_capacity && node->last_msgs[i] != NULL) {
         // Check if this stored message has a complete command
         char *stored_msg = node->last_msgs[i];
         char *newline = strchr(stored_msg, '\n');

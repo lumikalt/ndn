@@ -244,34 +244,32 @@ void ndn_object(Node *node, Object object, int senderfd) {
     return;
   }
 
-  // Check if this was an object we requested
-  bool was_user_request = false;
-  for (usize i = 0; i < interest->response_size; i++) {
-    if (interest->response[i] == -1) {
-      was_user_request = true;
-      printf(OK "Object '%s' retrieved successfully\n", object);
-      break;
-    }
-  }
-
+  bool self_interest = false;
   // Send to all interested nodes
   printf(NOTICE "Forwarding to... ");
   if (interest->response && interest->response_size > 0) {
     for (usize i = 0; i < interest->response_size; i++) {
-      int from = interest->response[i];
-      if (from == senderfd || from == -1) {
+      int response = interest->response[i];
+      if (response == senderfd || response == -1) {
+        if (response == -1) {
+          self_interest = true;
+        }
         continue;
       }
 
       char buffer[256];
       sprintf(buffer, "OBJECT %s\n", object);
-      if (write(from, buffer, strlen(buffer)) < 0) {
+      if (write(response, buffer, strlen(buffer)) < 0) {
         perror(ERR "writing OBJECT");
       }
-      printf("%02d ", from);
+      printf("%02d ", response);
     }
   }
   printf("\n");
+
+  if (self_interest) {
+    printf(OK "Object '%s' retrieved successfully\n", object);
+  }
 
   list_remove(node->interests, object);
 }

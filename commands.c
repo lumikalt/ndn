@@ -182,7 +182,7 @@ void ndn_join(Node *node, u16 net) {
     } else {
       // Queue other messages for later processing by ndn_run
       // (Add to node->last_msgs for the external_fd)
-      if (external_fd < node->last_msgs_capacity) {
+      if (external_fd < (i64)node->last_msgs_capacity) {
         if (node->last_msgs[external_fd]) {
           free(node->last_msgs[external_fd]);
         }
@@ -310,7 +310,7 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
     } else {
       // Queue other messages for later processing by ndn_run
       // (Add to node->last_msgs for the external_fd)
-      if (external_fd < node->last_msgs_capacity) {
+      if (external_fd < (i64)node->last_msgs_capacity) {
         if (node->last_msgs[external_fd]) {
           free(node->last_msgs[external_fd]);
         }
