@@ -88,6 +88,13 @@ void ndn_entry(Node *node, char *ip, char *tcp, int enteringfd) {
   if (node->external->fd == -1) {
     printf(NOTICE "No external yet, choosing this connection\n");
 
+    if (node->external->ip)
+      free(node->external->ip);
+    if (node->external->tcp)
+      free(node->external->tcp);
+    if (node->external->fd != -1)
+      close(node->external->fd);
+
     node->external->ip = strdup(ip);
     node->external->tcp = strdup(tcp);
     node->external->fd = enteringfd;

@@ -156,8 +156,11 @@ void ndn_join(Node *node, u16 net) {
   if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) <= 0) {
     perror(ERR "read");
     close(external_fd);
-    // Don't free node_ip/node_tcp again, they're already owned by
-    // node->external Just reset the external pointers
+
+    // Free the memory before nullifying the pointers
+    free(node->external->ip);
+    free(node->external->tcp);
+
     node->external->ip = NULL;
     node->external->tcp = NULL;
     node->external->fd = -1;
