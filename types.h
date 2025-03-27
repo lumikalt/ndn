@@ -83,11 +83,5 @@ typedef struct Node {
   pthread_t thread;
   bool exit;
 
-  // Object retrieval
-  Object current_retrieval;    // Name of object currently being retrieved
-  time_t retrieval_start_time; // When the retrieval started
-  int retrieval_timeout;       // Timeout in seconds
-  int retrieval_done;         // 0 for waiting, 1 for done, 2 for failed
-
   Config config;
 } Node;

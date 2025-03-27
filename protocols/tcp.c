@@ -1,6 +1,6 @@
 #include "tcp.h"
-#include "../util.h"
 #include "../commands.h"
+#include "../util.h"
 
 #include <netdb.h>
 #include <stdio.h>
@@ -235,7 +235,8 @@ void ndn_interest(Node *node, Object object, int fd) {
   }
 }
 
-void ndn_object(Node *node, Object object, int senterfd) {
+void ndn_object(Node *node, Object object, int senderfd) {
+  printf(NOTICE "Received OBJECT %s\n", object);
   cache_add(node, object);
 
   ObjectList *interest = list_find(node->interests, object);
@@ -243,12 +244,22 @@ void ndn_object(Node *node, Object object, int senterfd) {
     return;
   }
 
+  // Check if this was an object we requested
+  bool was_user_request = false;
+  for (usize i = 0; i < interest->response_size; i++) {
+    if (interest->response[i] == -1) {
+      was_user_request = true;
+      printf(OK "Object '%s' retrieved successfully\n", object);
+      break;
+    }
+  }
+
   // Send to all interested nodes
   printf(NOTICE "Forwarding to... ");
   if (interest->response && interest->response_size > 0) {
     for (usize i = 0; i < interest->response_size; i++) {
       int from = interest->response[i];
-      if (from == senterfd || from == -1) {
+      if (from == senderfd || from == -1) {
         continue;
       }
 
@@ -257,7 +268,6 @@ void ndn_object(Node *node, Object object, int senterfd) {
       if (write(from, buffer, strlen(buffer)) < 0) {
         perror(ERR "writing OBJECT");
       }
-
       printf("%02d ", from);
     }
   }
@@ -275,7 +285,7 @@ void ndn_noobject(Node *node, Object object, int senderfd) {
     return;
   }
 
-  // remove this fd from the waiting list
+  // Remove this fd from the waiting list
   for (usize i = 0; i < interest->waiting_size; i++) {
     if (interest->waiting[i] == senderfd) {
       for (usize j = i; j < interest->waiting_size - 1; j++) {
@@ -306,7 +316,7 @@ void ndn_noobject(Node *node, Object object, int senderfd) {
     printf("sent\n");
 
     if (self_interest)
-      printf(ERR "Failed to retrieve: not in network\n");
+      printf(ERR "Failed to retrieve object '%s': not in network\n", object);
 
     list_remove(node->interests, object);
 

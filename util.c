@@ -101,11 +101,6 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   node->in_net = false;
   node->net = 1000;
 
-  node->current_retrieval = NULL;
-  node->retrieval_start_time = 0;
-  node->retrieval_timeout = 3600; // 1h, absurdly high for testing
-  node->retrieval_done = false;
-
   // create TCP listener
 
   int listener_fd;
@@ -238,9 +233,7 @@ void clean_node(Node *node) {
   }
   if (node->last_msgs)
     free(node->last_msgs);
-  if (node->current_retrieval) {
-    free(node->current_retrieval);
-  }
+
   free(node);
 }
 

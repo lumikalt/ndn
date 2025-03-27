@@ -248,12 +248,6 @@ void ndn_run(Node *node) {
               if (sscanf(search_start, "OBJECT %100s", object) == 1) {
                 ndn_object(node, object, i);
                 ndn_show_interest_table(node);
-
-                if (node->current_retrieval != NULL &&
-                    strcmp(node->current_retrieval, object) == 0) {
-                  node->retrieval_done = true;
-                }
-
                 processed_command = true;
               } else {
                 fprintf(stderr, ERR "Invalid OBJECT format\n");
@@ -313,47 +307,6 @@ void ndn_run(Node *node) {
         FD_SET(node->external->fd, &master_fds);
         if (node->external->fd > max_fd) {
           max_fd = node->external->fd;
-        }
-      }
-    }
-
-    if (node->current_retrieval != NULL) {
-      time_t now = time(NULL);
-      int elapsed = now - node->retrieval_start_time;
-
-      // Only check once per second to avoid spamming
-      static time_t last_check = 0;
-      if (now != last_check) {
-        last_check = now;
-
-        // Check if retrieval is complete (success or failure)
-        if (node->retrieval_done) {
-          if (node->retrieval_done == 1) {
-            printf(OK "Object '%s' found after %d seconds\n",
-                   node->current_retrieval, elapsed);
-          } else {
-            printf(ERR "Object '%s' not found in network\n",
-                   node->current_retrieval);
-          }
-
-          // Clean up regardless of success/failure
-          free(node->current_retrieval);
-          node->current_retrieval = NULL;
-          node->retrieval_done = 0;
-
-          // Restore prompt
-          printf(YELLOW "> ");
-          fflush(stdout);
-        } else if (elapsed >= node->retrieval_timeout) {
-          // Timed out
-          printf(ERR "Timeout after %d seconds waiting for '%s'\n", elapsed,
-                 node->current_retrieval);
-          free(node->current_retrieval);
-          node->current_retrieval = NULL;
-
-          // Restore prompt
-          printf(YELLOW "> ");
-          fflush(stdout);
         }
       }
     }
@@ -452,6 +405,11 @@ void process_user_input(Node *node, char *input) {
   if ((sscanf(input, "create %100s%n", name, &pos) == 1 &&
        input[pos] == '\0') ||
       (sscanf(input, "c %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
+    if (!node->in_net) {
+      fprintf(stderr, ERR "Not in a network\n");
+      return;
+    }
+
     if (!is_valid_name(name)) {
       fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
       return;
@@ -467,6 +425,11 @@ void process_user_input(Node *node, char *input) {
   if ((sscanf(input, "delete %100s%n", name, &pos) == 1 &&
        input[pos] == '\0') ||
       (sscanf(input, "dl %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
+    if (!node->in_net) {
+      fprintf(stderr, ERR "Not in a network\n");
+      return;
+    }
+
     if (!is_valid_name(name)) {
       fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
       return;
@@ -483,6 +446,11 @@ void process_user_input(Node *node, char *input) {
   if ((sscanf(input, "retrieve %100s%n", name, &pos) == 1 &&
        input[pos] == '\0') ||
       (sscanf(input, "r %100s%n", name, &pos) == 1 && input[pos] == '\0')) {
+    if (!node->in_net) {
+      fprintf(stderr, ERR "Not in a network\n");
+      return;
+    }
+
     if (!is_valid_name(name)) {
       fprintf(stderr, ERR "Invalid name (alphanumeric, 1-100 chars)\n");
       return;
@@ -520,7 +488,12 @@ void process_user_input(Node *node, char *input) {
 
   //---leave---
   if ((strcmp(input, "leave") == 0) || (strcmp(input, "l") == 0)) {
-    printf(OK "Terminating\n");
+    if (!node->in_net) {
+      fprintf(stderr, ERR "Not in a network\n");
+      return;
+    }
+
+    printf(OK "Leaving network\n");
     ndn_leave(node);
     return;
   }

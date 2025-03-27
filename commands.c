@@ -388,10 +388,6 @@ void ndn_retrieve(Node *node, const char *name) {
     return;
   }
 
-  // Save current retrieval
-  node->current_retrieval = (Object)name;
-  node->retrieval_start_time = time(NULL);
-
   // Prepare the INTEREST message
   list_add(node->interests, (Object)name, -1, 0);
   char buffer[128];
@@ -423,14 +419,6 @@ void ndn_retrieve(Node *node, const char *name) {
   }
 
   printf(OK "Interest sent\n");
-
-  // Set up a retrieval request with timeout
-  time_t start_time = time(NULL);
-  node->current_retrieval = strdup(name);
-  node->retrieval_start_time = start_time;
-
-  printf(NOTICE "Waiting for responses (timeout: %d seconds)\n",
-         node->retrieval_timeout);
 
   // Return to main loop - we'll check for the response there
 }
@@ -474,12 +462,10 @@ void ndn_show_names(Node *node) {
 }
 
 void ndn_show_interest_table(Node *node) {
-  printf(NOTICE "Interests table\n\n");
-
   // Skip the sentinel head node
   ObjectList *interest = node->interests->next;
   if (interest == NULL) {
-    printf(RESET "\t(empty)\n");
+    printf(CYAN "(empty)\n" RESET);
     return;
   }
 
