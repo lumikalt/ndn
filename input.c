@@ -492,6 +492,9 @@ void process_user_input(Node *node, char *input) {
         node->external->tcp = strdup(node->tcp);
         node->external->fd = -1;
 
+        node->net = 1000;
+        node->in_net = true;
+
         return;
       }
 
