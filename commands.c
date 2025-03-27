@@ -474,7 +474,7 @@ void ndn_show_names(Node *node) {
 }
 
 void ndn_show_interest_table(Node *node) {
-  printf(NOTICE "Interests - 00 is this node\n\n");
+  printf(NOTICE "Interests table\n\n");
 
   // Skip the sentinel head node
   ObjectList *interest = node->interests->next;
@@ -504,9 +504,6 @@ void ndn_show_interest_table(Node *node) {
     return;
   }
 
-  // Always include the self node (00)
-  fds[fds_count++] = -1;
-
   // Include external node if connected
   if (node->external->fd != -1) {
     fds[fds_count++] = node->external->fd;
@@ -534,14 +531,16 @@ void ndn_show_interest_table(Node *node) {
     }
   }
 
+  if (fds_count == 0) {
+    printf(RESET "\t(no connected nodes)\n");
+    free(fds);
+    return;
+  }
+
   // Print header row
   printf(CYAN "%-*s |", (int)longest_name, "Object");
   for (int i = 0; i < fds_count; i++) {
-    if (fds[i] == -1) {
-      printf(" 00 |"); // Self node
-    } else {
-      printf(" %02d |", fds[i]);
-    }
+    printf(" %02d |", fds[i]);
   }
   printf(RESET "\n");
 

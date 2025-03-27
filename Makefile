@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=gnu99 -fPIE
-LDFLAGS = -lpthread -pie
+LDFLAGS = -pie
 SRC = $(wildcard *.c) $(wildcard protocols/*.c)
 OBJ = $(SRC:.c=.o)
 EXEC = ndn
