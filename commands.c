@@ -92,8 +92,8 @@ void ndn_join(Node *node, u16 net) {
 
   // Create TCP socket
   int external_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (external_fd < 0) {
-    fprintf(stderr, ERR "Failed to create socket\n");
+  if (!is_valid_fd(external_fd)) {
+    perror(ERR "socket");
     free(node_ip);
     free(node_tcp);
     return;
@@ -170,26 +170,25 @@ void ndn_join(Node *node, u16 net) {
 
   // Process each message separated by newline
   char *next_msg = strtok(buffer, "\n");
-  int safe_found = 0;
+  bool safe_found = false;
   while (next_msg != NULL) {
     // Check if the message is a SAFE message
     if (strncmp(next_msg, "SAFE", 4) == 0) {
       char ip[16], tcp[6];
       if (sscanf(next_msg, "SAFE %15s %5s", ip, tcp) == 2) {
         ndn_safe(node, ip, tcp);
-        safe_found = 1;
-      } else {
-        fprintf(stderr, ERR "Invalid SAFE message: %s\n", next_msg);
-        close(external_fd);
-        // Don't free node_ip/node_tcp, just reset node->external
-        node->external->ip = NULL;
-        node->external->tcp = NULL;
-        node->external->fd = -1;
-        return;
+        safe_found = true;
       }
     } else {
-      // Process or ignore other messages (e.g., ENTRY) as needed
-      printf(NOTICE "Ignoring message: %s\n", next_msg);
+      // Queue other messages for later processing by ndn_run
+      // (Add to node->last_msgs for the external_fd)
+      if (external_fd < node->last_msgs_capacity) {
+        if (node->last_msgs[external_fd]) {
+          free(node->last_msgs[external_fd]);
+        }
+        node->last_msgs[external_fd] = strdup(next_msg);
+      }
+      printf(NOTICE "Queued message for later processing: %s\n", next_msg);
     }
     next_msg = strtok(NULL, "\n");
   }
@@ -232,7 +231,8 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   char buffer[128];
 
   // Create and connect the TCP socket to connectIP:connectTCP
-  if ((external_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+  external_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (!is_valid_fd(external_fd)) {
     perror(ERR "socket");
     return;
   }
@@ -278,7 +278,7 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
     return;
   }
 
-  // Read SAFE response
+  // Read response(s)
   memset(buffer, 0, sizeof(buffer));
   if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) <= 0) {
     perror(ERR "read");
@@ -291,20 +291,39 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
     return;
   }
 
-  // Process SAFE response
   buffer[n] = '\0';
   char *escaped = str_escape(buffer);
   printf(MAGENTA "fd_%02d" RESET "\t%s\n", external_fd, escaped);
   free(escaped);
 
-  // Parse and handle SAFE
-  char ip[16], tcp[6];
-  if (sscanf(buffer, "SAFE %15s %5s", ip, tcp) == 2) {
-    ndn_safe(node, ip, tcp);
-  } else {
-    fprintf(stderr, ERR "Invalid SAFE response: %s\n", buffer);
+  // Process each message separated by newline
+  char *next_msg = strtok(buffer, "\n");
+  bool safe_found = false;
+  while (next_msg != NULL) {
+    // Check if the message is a SAFE message
+    if (strncmp(next_msg, "SAFE", 4) == 0) {
+      char ip[16], tcp[6];
+      if (sscanf(next_msg, "SAFE %15s %5s", ip, tcp) == 2) {
+        ndn_safe(node, ip, tcp);
+        safe_found = true;
+      }
+    } else {
+      // Queue other messages for later processing by ndn_run
+      // (Add to node->last_msgs for the external_fd)
+      if (external_fd < node->last_msgs_capacity) {
+        if (node->last_msgs[external_fd]) {
+          free(node->last_msgs[external_fd]);
+        }
+        node->last_msgs[external_fd] = strdup(next_msg);
+      }
+      printf(NOTICE "Queued message for later processing: %s\n", next_msg);
+    }
+    next_msg = strtok(NULL, "\n");
+  }
+
+  if (!safe_found) {
+    fprintf(stderr, ERR "No SAFE message received\n");
     close(external_fd);
-    freeaddrinfo(res);
     free(node->external->ip);
     free(node->external->tcp);
     node->external->ip = NULL;

@@ -320,6 +320,17 @@ int is_valid_name(char *name) {
   return 1;
 }
 
+bool is_valid_fd(int fd) {
+  if (fd < 0) {
+    return false; // Invalid fd
+  }
+  if (fd >= FD_SETSIZE) {
+    fprintf(stderr, ERR "File descriptor %d exceeds FD_SETSIZE (%d)\n", fd, FD_SETSIZE);
+    return false;
+  }
+  return true;
+}
+
 bool fd_exists_in_array(int fd, int *array, int count) {
   for (int i = 0; i < count; i++) {
     if (array[i] == fd) {

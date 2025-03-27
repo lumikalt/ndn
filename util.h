@@ -32,6 +32,7 @@ int is_valid_net(char *net);
 int is_valid_ip(char *ip);
 int is_valid_port(char *port);
 int is_valid_name(char *name);
+bool is_valid_fd(int fd);
 
 usize str_char_count(const char *s, char c);
 char *str_escape(const char *s);

@@ -16,6 +16,8 @@
 #include <time.h>
 #include <unistd.h>
 
+bool process_command(Node *node, char *command, int fd);
+
 // Unified function that handles both network I/O and user input
 void ndn_run(Node *node) {
   int listener_fd = node->listener_fd;
@@ -96,21 +98,30 @@ void ndn_run(Node *node) {
       if (new_fd < 0) {
         perror(ERR "accept");
       } else {
-        struct sockaddr_in *client_addr = (struct sockaddr_in *)&addr;
-        char client_ip[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &(client_addr->sin_addr), client_ip,
-                  INET_ADDRSTRLEN);
+        // Check if we're exceeding the file descriptor limit
+        if (new_fd >= FD_SETSIZE) {
+          fprintf(stderr,
+                  ERR
+                  "Too many connections (exceeded FD_SETSIZE limit of %d)\n",
+                  FD_SETSIZE);
+          close(new_fd);
+        } else {
+          struct sockaddr_in *client_addr = (struct sockaddr_in *)&addr;
+          char client_ip[INET_ADDRSTRLEN];
+          inet_ntop(AF_INET, &(client_addr->sin_addr), client_ip,
+                    INET_ADDRSTRLEN);
 
-        printf("\b\b" MAGENTA "fd_%02d" RESET "\t<new connection %s:%05d>\n",
-               new_fd, client_ip, ntohs(client_addr->sin_port));
+          printf("\b\b" MAGENTA "fd_%02d" RESET "\t<new connection %s:%05d>\n",
+                 new_fd, client_ip, ntohs(client_addr->sin_port));
 
-        FD_SET(new_fd, &master_fds);
-        if (new_fd > max_fd) {
-          max_fd = new_fd;
+          FD_SET(new_fd, &master_fds);
+          if (new_fd > max_fd) {
+            max_fd = new_fd;
+          }
+
+          printf(YELLOW "> ");
+          fflush(stdout);
         }
-
-        printf(YELLOW "> ");
-        fflush(stdout);
       }
     }
 
@@ -200,79 +211,11 @@ void ndn_run(Node *node) {
           bool processed_command = false;
 
           while ((next_newline = strchr(search_start, '\n')) != NULL) {
-            // Found a complete message
             *next_newline = '\0'; // Replace newline with null terminator
 
-            printf(NOTICE "Processing complete message: %s\n", search_start);
-
-            // Process based on command type
-            if (!memcmp(search_start, "ENTRY", 5)) {
-              char ip[16], tcp[6];
-              if (sscanf(search_start, "ENTRY %15s %5s", ip, tcp) == 2) {
-                ndn_entry(node, ip, tcp, i);
-                processed_command = true;
-              } else {
-                fprintf(stderr, ERR "Invalid ENTRY format\n");
-              }
-            }
-
-            // ------------------------------
-
-            else if (!memcmp(search_start, "SAFE", 4)) {
-              char ip[16], tcp[6];
-              if (sscanf(search_start + 5, "%15s %5s", ip, tcp) == 2) {
-                ndn_safe(node, ip, tcp);
-                processed_command = true;
-              } else {
-                fprintf(stderr, ERR "Invalid SAFE format: %s\n", search_start);
-              }
-            }
-
-            // ------------------------------
-
-            else if (!memcmp(search_start, "INTEREST", 8)) {
-              char object[101];
-              if (sscanf(search_start, "INTEREST %100s", object) == 1) {
-                ndn_interest(node, object, i);
-                ndn_show_interest_table(node);
-                processed_command = true;
-              } else {
-                fprintf(stderr, ERR "Invalid INTEREST format\n");
-              }
-            }
-
-            // ------------------------------
-
-            else if (!memcmp(search_start, "OBJECT", 6)) {
-              char object[101];
-              if (sscanf(search_start, "OBJECT %100s", object) == 1) {
-                ndn_object(node, object, i);
-                ndn_show_interest_table(node);
-                processed_command = true;
-              } else {
-                fprintf(stderr, ERR "Invalid OBJECT format\n");
-              }
-            }
-
-            // ------------------------------
-
-            else if (!memcmp(search_start, "NOOBJECT", 8)) {
-              char object[101];
-              if (sscanf(search_start, "NOOBJECT %100s", object) == 1) {
-                ndn_noobject(node, object, i);
-                ndn_show_interest_table(node);
-                processed_command = true;
-              } else {
-                fprintf(stderr, ERR "Invalid NOOBJECT format\n");
-              }
-            }
-
-            // ------------------------------
-
-            // Add other command handlers here
-
-            else {
-              fprintf(stderr, ERR "Unknown command: %s\n", search_start);
+            // Process the command
+            if (process_command(node, search_start, i)) {
+              processed_command = true;
             }
 
             // Move to the character after the newline
@@ -310,6 +253,111 @@ void ndn_run(Node *node) {
         }
       }
     }
+
+    // Add a check for any stored messages that need processing
+    for (int i = 0; i <= max_fd; i++) {
+      if (i != listener_fd && i != STDIN_FILENO && FD_ISSET(i, &master_fds) &&
+          i < node->last_msgs_capacity && node->last_msgs[i] != NULL) {
+        // Check if this stored message has a complete command
+        char *stored_msg = node->last_msgs[i];
+        char *newline = strchr(stored_msg, '\n');
+        if (newline) {
+          printf(NOTICE "Processing stored complete message from fd %d: %s\n",
+                 i, stored_msg);
+
+          // Create a copy of the buffer to process
+          char *process_buffer = strdup(stored_msg);
+          if (!process_buffer) {
+            perror(ERR "strdup");
+            continue;
+          }
+
+          // Process all complete messages in the buffer
+          char *search_start = process_buffer;
+          char *next_newline;
+          bool processed_command = false;
+
+          while ((next_newline = strchr(search_start, '\n')) != NULL) {
+            *next_newline = '\0'; // Replace newline with null terminator
+
+            // Process based on command type - same as the regular message
+            // handling
+            if (!memcmp(search_start, "ENTRY", 5)) {
+              char ip[16], tcp[6];
+              if (sscanf(search_start, "ENTRY %15s %5s", ip, tcp) == 2) {
+                ndn_entry(node, ip, tcp, i);
+                processed_command = true;
+              } else {
+                fprintf(stderr, ERR "Invalid ENTRY format in stored message\n");
+              }
+            } else if (!memcmp(search_start, "SAFE", 4)) {
+              char ip[16], tcp[6];
+              if (sscanf(search_start + 5, "%15s %5s", ip, tcp) == 2) {
+                ndn_safe(node, ip, tcp);
+                processed_command = true;
+              } else {
+                fprintf(stderr, ERR "Invalid SAFE format in stored message\n");
+              }
+            } else if (!memcmp(search_start, "INTEREST", 8)) {
+              char object[101];
+              if (sscanf(search_start, "INTEREST %100s", object) == 1) {
+                ndn_interest(node, object, i);
+                ndn_show_interest_table(node);
+                processed_command = true;
+              } else {
+                fprintf(stderr,
+                        ERR "Invalid INTEREST format in stored message\n");
+              }
+            } else if (!memcmp(search_start, "OBJECT", 6)) {
+              char object[101];
+              if (sscanf(search_start, "OBJECT %100s", object) == 1) {
+                ndn_object(node, object, i);
+                ndn_show_interest_table(node);
+                processed_command = true;
+              } else {
+                fprintf(stderr,
+                        ERR "Invalid OBJECT format in stored message\n");
+              }
+            } else if (!memcmp(search_start, "NOOBJECT", 8)) {
+              char object[101];
+              if (sscanf(search_start, "NOOBJECT %100s", object) == 1) {
+                ndn_noobject(node, object, i);
+                ndn_show_interest_table(node);
+                processed_command = true;
+              } else {
+                fprintf(stderr,
+                        ERR "Invalid NOOBJECT format in stored message\n");
+              }
+            } else {
+              fprintf(stderr, ERR "Unknown command in stored message: %s\n",
+                      search_start);
+            }
+
+            // Move to the character after the newline
+            search_start = next_newline + 1;
+          }
+
+          free(process_buffer);
+
+          // Update the stored message - remove the processed parts
+          size_t processed_len = (newline + 1) - stored_msg;
+          if (stored_msg[processed_len] == '\0') {
+            // Fully processed - free and clear
+            free(node->last_msgs[i]);
+            node->last_msgs[i] = NULL;
+          } else {
+            // Keep the remaining unprocessed part
+            char *remaining = strdup(stored_msg + processed_len);
+            free(node->last_msgs[i]);
+            node->last_msgs[i] = remaining;
+          }
+
+          if (processed_command) {
+            printf(NOTICE "Processed stored command from fd %d\n", i);
+          }
+        }
+      }
+    }
   }
 
   printf(NOTICE "Exiting main loop\n");
@@ -318,6 +366,60 @@ void ndn_run(Node *node) {
   ndn_leave(node);
 
   clean_node(node);
+}
+
+bool process_command(Node *node, char *command, int fd) {
+  bool processed = false;
+
+  // Process based on command type
+  if (!memcmp(command, "ENTRY", 5)) {
+    char ip[16], tcp[6];
+    if (sscanf(command, "ENTRY %15s %5s", ip, tcp) == 2) {
+      ndn_entry(node, ip, tcp, fd);
+      processed = true;
+    } else {
+      fprintf(stderr, ERR "Invalid ENTRY format\n");
+    }
+  } else if (!memcmp(command, "SAFE", 4)) {
+    char ip[16], tcp[6];
+    if (sscanf(command + 5, "%15s %5s", ip, tcp) == 2) {
+      ndn_safe(node, ip, tcp);
+      processed = true;
+    } else {
+      fprintf(stderr, ERR "Invalid SAFE format: %s\n", command);
+    }
+  } else if (!memcmp(command, "INTEREST", 8)) {
+    char object[101];
+    if (sscanf(command, "INTEREST %100s", object) == 1) {
+      ndn_interest(node, object, fd);
+      ndn_show_interest_table(node);
+      processed = true;
+    } else {
+      fprintf(stderr, ERR "Invalid INTEREST format\n");
+    }
+  } else if (!memcmp(command, "OBJECT", 6)) {
+    char object[101];
+    if (sscanf(command, "OBJECT %100s", object) == 1) {
+      ndn_object(node, object, fd);
+      ndn_show_interest_table(node);
+      processed = true;
+    } else {
+      fprintf(stderr, ERR "Invalid OBJECT format\n");
+    }
+  } else if (!memcmp(command, "NOOBJECT", 8)) {
+    char object[101];
+    if (sscanf(command, "NOOBJECT %100s", object) == 1) {
+      ndn_noobject(node, object, fd);
+      ndn_show_interest_table(node);
+      processed = true;
+    } else {
+      fprintf(stderr, ERR "Invalid NOOBJECT format\n");
+    }
+  } else {
+    fprintf(stderr, ERR "Unknown command: %s\n", command);
+  }
+
+  return processed;
 }
 
 // Helper function to process user input
