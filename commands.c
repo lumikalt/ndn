@@ -314,7 +314,7 @@ void ndn_direct_join(Node *node, char *ip, char *tcp) {
   setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &short_timeout,
              sizeof(short_timeout));
 
-  const char *test_msg = "\n";
+  const char *test_msg = "\0";
   if (send(fd, test_msg, strlen(test_msg), MSG_NOSIGNAL) < 0) {
     fprintf(stderr, ERR "Connection verification failed: %s\n",
             strerror(errno));
