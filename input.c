@@ -244,14 +244,12 @@ void ndn_run(Node *node) {
           // Process all complete messages in the buffer
           char *search_start = process_buffer;
           char *next_newline;
-          bool processed_command = false;
 
           while ((next_newline = strchr(search_start, '\n')) != NULL) {
             *next_newline = '\0'; // Replace newline with null terminator
 
             // Process the command
             if (process_command(node, search_start, i)) {
-              processed_command = true;
             }
 
             // Move to the character after the newline
