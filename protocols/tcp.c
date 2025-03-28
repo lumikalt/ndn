@@ -103,13 +103,18 @@ void ndn_entry(Node *node, char *ip, char *tcp, int enteringfd) {
             node->external->ip ? node->external->ip : "0.0.0.0",
             node->external->tcp ? node->external->tcp : "0");
 
-    if (write(enteringfd, buffer, strlen(buffer)) < 0) {
-      perror(ERR "writing SAFE");
+    ssize_t result = send(enteringfd, buffer, strlen(buffer), MSG_NOSIGNAL);
+    if (result < 0) {
+      perror(ERR "sending SAFE");
+      // This connection might already be dead
+      printf(WARN "Connection may have closed prematurely\n");
+      return; // Don't continue sending to this fd
     }
 
     sprintf(buffer, "ENTRY %s %s\n", node->ip, node->tcp);
-    if (write(enteringfd, buffer, strlen(buffer)) < 0) {
-      perror(ERR "writing ENTRY");
+    result = send(enteringfd, buffer, strlen(buffer), MSG_NOSIGNAL);
+    if (result < 0) {
+      perror(ERR "sending data");
     } else {
       printf(NOTICE "Sending it an ENTRY message\n");
     }
@@ -122,8 +127,9 @@ void ndn_entry(Node *node, char *ip, char *tcp, int enteringfd) {
           node->external->ip ? node->external->ip : "0.0.0.0",
           node->external->tcp ? node->external->tcp : "0");
 
-  if (write(enteringfd, buffer, strlen(buffer)) < 0) {
-    perror(ERR "writing SAFE");
+  ssize_t result = send(enteringfd, buffer, strlen(buffer), MSG_NOSIGNAL);
+  if (result < 0) {
+    perror(ERR "sending data");
   }
 
   printf(NOTICE "Sent safeguard\n");
@@ -142,8 +148,9 @@ void ndn_interest(Node *node, Object object, int fd) {
     printf(NOTICE "Object belongs to self... ");
 
     sprintf(buffer, "OBJECT %s\n", object);
-    if (write(fd, buffer, strlen(buffer)) < 0) {
-      perror(ERR "writing OBJECT");
+    ssize_t result = send(fd, buffer, strlen(buffer), MSG_NOSIGNAL);
+    if (result < 0) {
+      perror(ERR "sending data");
     }
 
     printf("sent\n");
@@ -159,8 +166,9 @@ void ndn_interest(Node *node, Object object, int fd) {
       printf(NOTICE "Object is cached... ");
 
       sprintf(buffer, "OBJECT %s\n", object);
-      if (write(fd, buffer, strlen(buffer)) < 0) {
-        perror(ERR "writing OBJECT");
+      ssize_t result = send(fd, buffer, strlen(buffer), MSG_NOSIGNAL);
+      if (result < 0) {
+        perror(ERR "sending data");
       }
 
       printf("sent\n");
@@ -176,8 +184,9 @@ void ndn_interest(Node *node, Object object, int fd) {
     printf(NOTICE "No other connections, replying... ");
 
     sprintf(buffer, "NOOBJECT %s\n", object);
-    if (write(fd, buffer, strlen(buffer)) < 0) {
-      perror(ERR "writing NOOBJECT");
+    ssize_t result = send(fd, buffer, strlen(buffer), MSG_NOSIGNAL);
+    if (result < 0) {
+      perror(ERR "sending data");
     }
 
     printf("sent\n");
@@ -218,8 +227,10 @@ void ndn_interest(Node *node, Object object, int fd) {
       continue;
     }
 
-    if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
-      perror(ERR "writing INTEREST");
+    ssize_t result =
+        send(node->internal[i]->fd, buffer, strlen(buffer), MSG_NOSIGNAL);
+    if (result < 0) {
+      perror(ERR "sending data");
     }
 
     list_add(node->interests, object, 0, node->internal[i]->fd);
@@ -227,8 +238,10 @@ void ndn_interest(Node *node, Object object, int fd) {
 
   // Ask external
   if (node->external->fd != fd) {
-    if (write(node->external->fd, buffer, strlen(buffer)) < 0) {
-      perror(ERR "writing INTEREST");
+    ssize_t result =
+        send(node->external->fd, buffer, strlen(buffer), MSG_NOSIGNAL);
+    if (result < 0) {
+      perror(ERR "sending data");
     }
 
     list_add(node->interests, object, 0, node->external->fd);
@@ -266,8 +279,9 @@ void ndn_object(Node *node, Object object, int senderfd) {
 
       char buffer[256];
       sprintf(buffer, "OBJECT %s\n", object);
-      if (write(response, buffer, strlen(buffer)) < 0) {
-        perror(ERR "writing OBJECT");
+      ssize_t result = send(response, buffer, strlen(buffer), MSG_NOSIGNAL);
+      if (result < 0) {
+        perror(ERR "sending data");
       }
       printf("%02d ", response);
     }
@@ -314,8 +328,10 @@ void ndn_noobject(Node *node, Object object, int senderfd) {
         continue;
       }
 
-      if (write(interest->response[i], buffer, strlen(buffer)) < 0) {
-        perror("\n" ERR "writing NOOBJECT");
+      ssize_t result =
+          send(interest->response[i], buffer, strlen(buffer), MSG_NOSIGNAL);
+      if (result < 0) {
+        perror("\n" ERR "sending data");
       }
     }
     printf("sent\n");
@@ -484,8 +500,10 @@ void ndn_exit__ext(Node *node) {
 
     char buffer[128];
     sprintf(buffer, "ENTRY %s %s\n", node->ip, node->tcp);
-    if (write(node->external->fd, buffer, strlen(buffer)) < 0) {
-      perror("\n" ERR "writing ENTRY");
+    ssize_t result =
+        send(node->external->fd, buffer, strlen(buffer), MSG_NOSIGNAL);
+    if (result < 0) {
+      perror("\n" ERR "sending data");
       return;
     }
     printf("done\n");
@@ -498,8 +516,10 @@ void ndn_exit__ext(Node *node) {
       }
 
       sprintf(buffer, "SAFE %s %s\n", node->external->ip, node->external->tcp);
-      if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
-        perror("\n" ERR "writing SAFE");
+      result =
+          send(node->internal[i]->fd, buffer, strlen(buffer), MSG_NOSIGNAL);
+      if (result < 0) {
+        perror("\n" ERR "sending data");
       }
     }
     printf("sent\n");
@@ -600,8 +620,10 @@ void ndn_exit__ext(Node *node) {
 
       char buffer[128];
       sprintf(buffer, "ENTRY %s %s\n", node->ip, node->tcp);
-      if (write(node->external->fd, buffer, strlen(buffer)) < 0) {
-        perror("\n" ERR "writing ENTRY");
+      ssize_t result =
+          send(node->external->fd, buffer, strlen(buffer), MSG_NOSIGNAL);
+      if (result < 0) {
+        perror("\n" ERR "sending data");
         return;
       }
       printf("done\n");
@@ -615,8 +637,10 @@ void ndn_exit__ext(Node *node) {
 
         sprintf(buffer, "SAFE %s %s\n", node->external->ip,
                 node->external->tcp);
-        if (write(node->internal[i]->fd, buffer, strlen(buffer)) < 0) {
-          perror("\n" ERR "writing SAFE");
+        result =
+            send(node->internal[i]->fd, buffer, strlen(buffer), MSG_NOSIGNAL);
+        if (result < 0) {
+          perror("\n" ERR "sending data");
         }
         printf("sent\n");
       }

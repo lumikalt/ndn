@@ -165,6 +165,14 @@ Node *init_node(usize cache_size, char *ip, char *tcp, char *regIP,
   }
   node->last_msgs_capacity = 100;
 
+  // Add to init_node() in util.c after initializing other fields
+  FD_ZERO(&node->master_fds);
+  node->max_fd = node->listener_fd; // Start with just the listener
+  FD_SET(STDIN_FILENO, &node->master_fds);
+  FD_SET(node->listener_fd, &node->master_fds);
+  if (STDIN_FILENO > node->max_fd)
+    node->max_fd = STDIN_FILENO;
+
   printf(OK "Node initialized, starting main loop...\n");
 
   node->exit = false;
@@ -325,7 +333,8 @@ bool is_valid_fd(int fd) {
     return false; // Invalid fd
   }
   if (fd >= FD_SETSIZE) {
-    fprintf(stderr, ERR "File descriptor %d exceeds FD_SETSIZE (%d)\n", fd, FD_SETSIZE);
+    fprintf(stderr, ERR "File descriptor %d exceeds FD_SETSIZE (%d)\n", fd,
+            FD_SETSIZE);
     return false;
   }
   return true;
@@ -392,4 +401,34 @@ bool cache_contains(Node *node, Object object) {
     }
   }
   return false;
+}
+
+// Helper functions for FD management
+
+void add_fd_to_set(Node *node, int fd) {
+  if (!is_valid_fd(fd))
+    return;
+
+  FD_SET(fd, &node->master_fds);
+  if (fd > node->max_fd)
+    node->max_fd = fd;
+}
+
+void remove_fd_from_set(Node *node, int fd) {
+  if (fd < 0)
+    return;
+
+  FD_CLR(fd, &node->master_fds);
+
+  // Recalculate max_fd if needed
+  if (fd == node->max_fd) {
+    node->max_fd = STDIN_FILENO;
+    if (node->listener_fd > node->max_fd)
+      node->max_fd = node->listener_fd;
+
+    for (int i = 0; i < FD_SETSIZE; i++) {
+      if (FD_ISSET(i, &node->master_fds) && i > node->max_fd)
+        node->max_fd = i;
+    }
+  }
 }

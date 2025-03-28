@@ -222,57 +222,138 @@ void ndn_join(Node *node, u16 net) {
   printf(OK "Joined network %03d\n", net);
 }
 
-void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
-  if (node->in_net) {
-    fprintf(stderr, ERR "Already in a network, `(l)eave` first\n");
-    return;
-  }
-
-  int external_fd, errcode;
-  ssize_t n;
+void ndn_direct_join(Node *node, char *ip, char *tcp) {
+  int fd, errcode;
   struct addrinfo hints, *res;
-  char buffer[128];
+  struct timeval timeout;
+  fd_set write_fds;
+  int flags;
 
-  // Create and connect the TCP socket to connectIP:connectTCP
-  external_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (!is_valid_fd(external_fd)) {
+  printf(NOTICE "Attempting to connect with %s:%s\n", ip, tcp);
+
+  if ((fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     perror(ERR "socket");
     return;
   }
+
+  // Set socket to non-blocking mode
+  flags = fcntl(fd, F_GETFL, 0);
+  fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
 
-  if ((errcode = getaddrinfo(connectIP, connectTCP, &hints, &res)) != 0) {
-    fprintf(stderr, ERR "getaddrinfo: %s\n", gai_strerror(errcode));
-    close(external_fd);
+  if ((errcode = getaddrinfo(ip, tcp, &hints, &res)) != 0) {
+    fprintf(stderr, ERR "Failed to get address info (%s)\n",
+            gai_strerror(errcode));
+    close(fd);
     return;
   }
 
-  printf(NOTICE "Attempting to connect with %s:%s\n", connectIP, connectTCP);
+  // Try to connect (will return immediately in non-blocking mode)
+  int result = connect(fd, res->ai_addr, res->ai_addrlen);
 
-  if ((n = connect(external_fd, res->ai_addr, res->ai_addrlen)) == -1) {
+  if (result < 0 && errno != EINPROGRESS) {
+    // Immediate failure
     perror(ERR "connect");
-    close(external_fd);
     freeaddrinfo(res);
+    close(fd);
     return;
   }
 
-  printf(NOTICE "Connected to external %s:%s\n", connectIP, connectTCP);
+  // Set up for select - wait for connection to complete
+  FD_ZERO(&write_fds);
+  FD_SET(fd, &write_fds);
+
+  // Set timeout to 3 seconds
+  timeout.tv_sec = 3;
+  timeout.tv_usec = 0;
+
+  // Wait for connection to complete
+  result = select(fd + 1, NULL, &write_fds, NULL, &timeout);
+
+  if (result <= 0) {
+    if (result == 0) {
+      fprintf(stderr, ERR "Connection timed out\n");
+    } else {
+      perror(ERR "select");
+    }
+    freeaddrinfo(res);
+    close(fd);
+    return;
+  }
+
+  // Check if connection succeeded
+  int error = 0;
+  socklen_t len = sizeof(error);
+
+  // Get the error value from getsockopt - CRITICAL step
+  if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
+    perror(ERR "getsockopt");
+    freeaddrinfo(res);
+    close(fd);
+    return;
+  }
+
+  // Check if there was an actual connection error
+  if (error != 0) {
+    fprintf(stderr, ERR "Connection failed: %s (error %d)\n", strerror(error),
+            error);
+    freeaddrinfo(res);
+    close(fd);
+    return;
+  }
+
+  // Add a verification step - try to send a small byte
+  struct timeval short_timeout;
+  short_timeout.tv_sec = 1;
+  short_timeout.tv_usec = 0;
+  setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &short_timeout,
+             sizeof(short_timeout));
+  setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &short_timeout,
+             sizeof(short_timeout));
+
+  const char *test_msg = "TEST\n";
+  if (send(fd, test_msg, strlen(test_msg), MSG_NOSIGNAL) < 0) {
+    fprintf(stderr, ERR "Connection verification failed: %s\n",
+            strerror(errno));
+    freeaddrinfo(res);
+    close(fd);
+    return;
+  }
+
+  char test_buffer[8];
+  if (recv(fd, test_buffer, sizeof(test_buffer), MSG_PEEK | MSG_DONTWAIT) < 0 &&
+      errno != EAGAIN && errno != EWOULDBLOCK) {
+    fprintf(stderr, ERR "Connection verification failed: %s\n",
+            strerror(errno));
+    freeaddrinfo(res);
+    close(fd);
+    return;
+  }
+
+  // Set socket back to blocking mode
+  fcntl(fd, F_SETFL, flags);
 
   freeaddrinfo(res);
 
+  printf(NOTICE "Connected to external %s:%s\n", ip, tcp);
+
+  // Rest of your function remains the same
+  ssize_t n;
+  char buffer[128];
+
   // Set up external node information
-  node->external->ip = strdup(connectIP);
-  node->external->tcp = strdup(connectTCP);
-  node->external->fd = external_fd;
+  node->external->ip = strdup(ip);
+  node->external->tcp = strdup(tcp);
+  node->external->fd = fd;
 
   // Send ENTRY message
   sprintf(buffer, "ENTRY %s %s\n", node->ip, node->tcp);
-  if ((n = write(external_fd, buffer, strlen(buffer))) < 0) {
+  if ((n = write(fd, buffer, strlen(buffer))) < 0) {
     perror(ERR "write");
-    close(external_fd);
+    close(fd);
     free(node->external->ip);
     free(node->external->tcp);
     node->external->ip = NULL;
@@ -283,9 +364,9 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
 
   // Read response(s)
   memset(buffer, 0, sizeof(buffer));
-  if ((n = read(external_fd, buffer, sizeof(buffer) - 1)) <= 0) {
+  if ((n = read(fd, buffer, sizeof(buffer) - 1)) <= 0) {
     perror(ERR "read");
-    close(external_fd);
+    close(fd);
     free(node->external->ip);
     free(node->external->tcp);
     node->external->ip = NULL;
@@ -296,7 +377,7 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
 
   buffer[n] = '\0';
   char *escaped = str_escape(buffer);
-  printf(MAGENTA "fd_%02d" RESET "\t%s\n", external_fd, escaped);
+  printf(MAGENTA "fd_%02d" RESET "\t%s\n", fd, escaped);
   free(escaped);
 
   // Process each message separated by newline
@@ -312,12 +393,12 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
       }
     } else {
       // Queue other messages for later processing by ndn_run
-      // (Add to node->last_msgs for the external_fd)
-      if (external_fd < (i64)node->last_msgs_capacity) {
-        if (node->last_msgs[external_fd]) {
-          free(node->last_msgs[external_fd]);
+      // (Add to node->last_msgs for the fd)
+      if (fd < (i64)node->last_msgs_capacity) {
+        if (node->last_msgs[fd]) {
+          free(node->last_msgs[fd]);
         }
-        node->last_msgs[external_fd] = strdup(next_msg);
+        node->last_msgs[fd] = strdup(next_msg);
       }
       printf(NOTICE "Queued message for later processing: %s\n", next_msg);
     }
@@ -326,7 +407,7 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
 
   if (!safe_found) {
     fprintf(stderr, ERR "No SAFE message received\n");
-    close(external_fd);
+    close(fd);
     free(node->external->ip);
     free(node->external->tcp);
     node->external->ip = NULL;
@@ -336,8 +417,7 @@ void ndn_direct_join(Node *node, char *connectIP, char *connectTCP) {
   }
 
   node->in_net = true;
-  printf(OK "Directly joined network of external %s:%s\n", connectIP,
-         connectTCP);
+  printf(OK "Directly joined network of external %s:%s\n", ip, tcp);
 }
 
 void ndn_create(Node *node, const char *name) {

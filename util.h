@@ -39,8 +39,10 @@ char *str_escape(const char *s);
 
 bool fd_exists_in_array(int fd, int *array, int count);
 
-
 void grow_internal(Node *node);
 
 void cache_add(Node *node, Object object);
 bool cache_contains(Node *node, Object object);
+
+void add_fd_to_set(Node *node, int fd);
+void remove_fd_from_set(Node *node, int fd);

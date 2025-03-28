@@ -18,21 +18,21 @@
 
 bool process_command(Node *node, char *command, int fd);
 
-// Unified function that handles both network I/O and user input
+// Update ndn_run to use the Node's built-in FD tracking
 void ndn_run(Node *node) {
   int listener_fd = node->listener_fd;
-  int new_fd, max_fd;
+  int new_fd;
   struct sockaddr_storage addr;
   socklen_t addrlen;
   char buffer[128];
-  fd_set master_fds, read_fds;
+  fd_set read_fds;
 
-  // Initialize file descriptor sets for select()
-  FD_ZERO(&master_fds);
-  FD_SET(listener_fd, &master_fds);
-  FD_SET(STDIN_FILENO, &master_fds); // Add stdin to the set
-
-  max_fd = listener_fd > STDIN_FILENO ? listener_fd : STDIN_FILENO;
+  // Initialize file descriptor sets - they're now in Node
+  // Only add listener_fd if already in a network
+  if (node->in_net) {
+    add_fd_to_set(node, listener_fd);
+  }
+  add_fd_to_set(node, STDIN_FILENO); // Always add stdin to the set
 
   printf(OK "TCP server started and ready to accept connections\n");
   printf(NOTICE "Type '(h)elp' for the list of commands\n");
@@ -40,40 +40,33 @@ void ndn_run(Node *node) {
   printf(YELLOW "> ");
   fflush(stdout);
   while (!node->exit) {
-    // Clean up any invalid file descriptors from master_fds.
-    for (int i = 0; i < FD_SETSIZE; i++) {
-      if (FD_ISSET(i, &master_fds)) {
-        // Check if the file descriptor is still valid.
-        if (fcntl(i, F_GETFD) == -1) {
-          FD_CLR(i, &master_fds);
-        }
-      }
-    }
-
-    // Recalculate max_fd based on the current master_fds.
-    max_fd = (listener_fd > STDIN_FILENO ? listener_fd : STDIN_FILENO);
-    for (int i = 0; i < FD_SETSIZE; i++) {
-      if (FD_ISSET(i, &master_fds) && i > max_fd) {
-        max_fd = i;
-      }
+    // Check if the node is in a network and update listener_fd status if needed
+    if (node->in_net && !FD_ISSET(listener_fd, &node->master_fds)) {
+      add_fd_to_set(node, listener_fd);
+    } else if (!node->in_net && FD_ISSET(listener_fd, &node->master_fds)) {
+      remove_fd_from_set(node, listener_fd);
     }
 
     // Copy master set to temporary set for select()
-    read_fds = master_fds;
+    read_fds = node->master_fds;
 
     // Add timeout to prevent indefinite blocking
     struct timeval timeout;
     timeout.tv_sec = 1;
     timeout.tv_usec = 0;
 
-    int activity = select(max_fd + 1, &read_fds, NULL, NULL, &timeout);
+    int activity = select(node->max_fd + 1, &read_fds, NULL, NULL, &timeout);
 
     if (activity < 0) {
       perror(ERR "select");
       break;
     }
 
-    // Check for user input first
+    // Check for user input first - ensure STDIN is always in the set
+    if (!FD_ISSET(STDIN_FILENO, &node->master_fds)) {
+      add_fd_to_set(node, STDIN_FILENO);
+    }
+
     if (FD_ISSET(STDIN_FILENO, &read_fds)) {
       char input[128];
       if (fgets(input, sizeof(input), stdin) != NULL) {
@@ -98,12 +91,8 @@ void ndn_run(Node *node) {
       if (new_fd < 0) {
         perror(ERR "accept");
       } else {
-        // Check if we're exceeding the file descriptor limit
-        if (new_fd >= FD_SETSIZE) {
-          fprintf(stderr,
-                  ERR
-                  "Too many connections (exceeded FD_SETSIZE limit of %d)\n",
-                  FD_SETSIZE);
+        // Use helper function to add the FD
+        if (!is_valid_fd(new_fd)) {
           close(new_fd);
         } else {
           struct sockaddr_in *client_addr = (struct sockaddr_in *)&addr;
@@ -114,10 +103,7 @@ void ndn_run(Node *node) {
           printf("\b\b" MAGENTA "fd_%02d" RESET "\t<new connection %s:%05d>\n",
                  new_fd, client_ip, ntohs(client_addr->sin_port));
 
-          FD_SET(new_fd, &master_fds);
-          if (new_fd > max_fd) {
-            max_fd = new_fd;
-          }
+          add_fd_to_set(node, new_fd);
 
           printf(YELLOW "> ");
           fflush(stdout);
@@ -126,7 +112,7 @@ void ndn_run(Node *node) {
     }
 
     // Check data from connected clients
-    for (int i = 0; i <= max_fd; i++) {
+    for (int i = 0; i <= node->max_fd; i++) {
       if (i != listener_fd && i != STDIN_FILENO && FD_ISSET(i, &read_fds)) {
         memset(buffer, 0, sizeof(buffer));
         int bytes_read = read(i, buffer, sizeof(buffer) - 1);
@@ -148,17 +134,7 @@ void ndn_run(Node *node) {
           ndn_node_exit(node, i);
           // Close the socket and remove from fd set
           close(i);
-          FD_CLR(i, &master_fds); // Make sure to clear it from master_fds
-
-          // Recalculate max_fd if needed
-          if (i == max_fd) {
-            max_fd = listener_fd; // Start with listener
-            for (int j = 0; j <= FD_SETSIZE; j++) {
-              if (FD_ISSET(j, &master_fds) && j > max_fd) {
-                max_fd = j;
-              }
-            }
-          }
+          remove_fd_from_set(node, i);
 
           printf(YELLOW "> ");
           fflush(stdout);
@@ -246,18 +222,16 @@ void ndn_run(Node *node) {
 
     // Add any new external connections to the set
     if (node->external && node->external->fd > 0) {
-      if (!FD_ISSET(node->external->fd, &master_fds)) {
-        FD_SET(node->external->fd, &master_fds);
-        if (node->external->fd > max_fd) {
-          max_fd = node->external->fd;
-        }
+      if (!FD_ISSET(node->external->fd, &node->master_fds)) {
+        add_fd_to_set(node, node->external->fd);
       }
     }
 
-    // Add a check for any stored messages that need processing
-    for (int i = 0; i <= max_fd; i++) {
-      if (i != listener_fd && i != STDIN_FILENO && FD_ISSET(i, &master_fds) &&
-          i < (i64)node->last_msgs_capacity && node->last_msgs[i] != NULL) {
+    // Process stored messages...
+    for (int i = 0; i <= node->max_fd; i++) {
+      if (i != listener_fd && i != STDIN_FILENO &&
+          FD_ISSET(i, &node->master_fds) && i < (i64)node->last_msgs_capacity &&
+          node->last_msgs[i] != NULL) {
         // Check if this stored message has a complete command
         char *stored_msg = node->last_msgs[i];
         char *newline = strchr(stored_msg, '\n');

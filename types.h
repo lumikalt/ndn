@@ -75,7 +75,8 @@ typedef struct Node {
   usize net;
 
   // TCP listener
-  int listener_fd;
+  int listener_fd, max_fd;
+  fd_set master_fds;
   char **last_msgs;
   usize last_msgs_capacity;
 

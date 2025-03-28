@@ -67,6 +67,8 @@ int main(int argc, char *argv[]) {
   sigaction(SIGINT, &sa, NULL);
   // Also handle SIGTERM for good measure
   sigaction(SIGTERM, &sa, NULL);
+  // Ignore SIGPIPE signals
+  signal(SIGPIPE, SIG_IGN);
 
   ndn_run(node);
 
