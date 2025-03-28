@@ -447,7 +447,10 @@ void ndn_create(Node *node, const char *name) {
 }
 
 void ndn_delete(Node *node, const char *name) {
-  printf(NOTICE "Deleting object %s\n", name);
+  if (!list_find(node->objects, (char *)name)) {
+    fprintf(stderr, ERR "Object '%s' not found\n", name);
+    return;
+  }
 
   list_remove(node->objects, (Object)name);
 }
