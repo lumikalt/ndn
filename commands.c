@@ -764,6 +764,24 @@ void ndn_leave(Node *node) {
   }
   node->internal_index = 0;
 
+  // IMPORTANT: Add this section to clean up any fd's in the master set
+  // Check all file descriptors and close any that might still be open
+  for (int i = 0; i <= node->max_fd; i++) {
+    if (i != STDIN_FILENO && i != node->listener_fd &&
+        FD_ISSET(i, &node->master_fds)) {
+      close(i);
+      remove_fd_from_set(node, i);
+    }
+  }
+
+  // Free all stored message buffers
+  for (size_t i = 0; i < node->last_msgs_capacity; i++) {
+    if (node->last_msgs[i] != NULL) {
+      free(node->last_msgs[i]);
+      node->last_msgs[i] = NULL;
+    }
+  }
+
   // Clear objects & interests
   list_destroy(node->objects);
   list_destroy(node->interests);
