@@ -220,21 +220,16 @@ void ndn_run(Node *node) {
       }
     }
 
-    // Add any new external connections to the set
-    if (node->external && node->external->fd > 0) {
-      if (!FD_ISSET(node->external->fd, &node->master_fds)) {
-        add_fd_to_set(node, node->external->fd);
-      }
-    }
-
-    // Process stored messages...
+    // Process stored messages every iteration, regardless of new activity
     for (int i = 0; i <= node->max_fd; i++) {
       if (i != listener_fd && i != STDIN_FILENO &&
           FD_ISSET(i, &node->master_fds) && i < (i64)node->last_msgs_capacity &&
           node->last_msgs[i] != NULL) {
+
         // Check if this stored message has a complete command
         char *stored_msg = node->last_msgs[i];
         char *newline = strchr(stored_msg, '\n');
+
         if (newline) {
           printf(NOTICE "Processing stored complete message from fd %d: %s\n",
                  i, stored_msg);
@@ -254,57 +249,9 @@ void ndn_run(Node *node) {
           while ((next_newline = strchr(search_start, '\n')) != NULL) {
             *next_newline = '\0'; // Replace newline with null terminator
 
-            // Process based on command type - same as the regular message
-            // handling
-            if (!memcmp(search_start, "ENTRY", 5)) {
-              char ip[16], tcp[6];
-              if (sscanf(search_start, "ENTRY %15s %5s", ip, tcp) == 2) {
-                ndn_entry(node, ip, tcp, i);
-                processed_command = true;
-              } else {
-                fprintf(stderr, ERR "Invalid ENTRY format in stored message\n");
-              }
-            } else if (!memcmp(search_start, "SAFE", 4)) {
-              char ip[16], tcp[6];
-              if (sscanf(search_start + 5, "%15s %5s", ip, tcp) == 2) {
-                ndn_safe(node, ip, tcp);
-                processed_command = true;
-              } else {
-                fprintf(stderr, ERR "Invalid SAFE format in stored message\n");
-              }
-            } else if (!memcmp(search_start, "INTEREST", 8)) {
-              char object[101];
-              if (sscanf(search_start, "INTEREST %100s", object) == 1) {
-                ndn_interest(node, object, i);
-                ndn_show_interest_table(node);
-                processed_command = true;
-              } else {
-                fprintf(stderr,
-                        ERR "Invalid INTEREST format in stored message\n");
-              }
-            } else if (!memcmp(search_start, "OBJECT", 6)) {
-              char object[101];
-              if (sscanf(search_start, "OBJECT %100s", object) == 1) {
-                ndn_object(node, object, i);
-                ndn_show_interest_table(node);
-                processed_command = true;
-              } else {
-                fprintf(stderr,
-                        ERR "Invalid OBJECT format in stored message\n");
-              }
-            } else if (!memcmp(search_start, "NOOBJECT", 8)) {
-              char object[101];
-              if (sscanf(search_start, "NOOBJECT %100s", object) == 1) {
-                ndn_noobject(node, object, i);
-                ndn_show_interest_table(node);
-                processed_command = true;
-              } else {
-                fprintf(stderr,
-                        ERR "Invalid NOOBJECT format in stored message\n");
-              }
-            } else {
-              fprintf(stderr, ERR "Unknown command in stored message: %s\n",
-                      search_start);
+            // Process the command
+            if (process_command(node, search_start, i)) {
+              processed_command = true;
             }
 
             // Move to the character after the newline
@@ -313,23 +260,21 @@ void ndn_run(Node *node) {
 
           free(process_buffer);
 
-          // Update the stored message - remove the processed parts
-          size_t processed_len = (newline + 1) - stored_msg;
-          if (stored_msg[processed_len] == '\0') {
-            // Fully processed - free and clear
-            free(node->last_msgs[i]);
-            node->last_msgs[i] = NULL;
-          } else {
-            // Keep the remaining unprocessed part
-            char *remaining = strdup(stored_msg + processed_len);
-            free(node->last_msgs[i]);
-            node->last_msgs[i] = remaining;
-          }
+          // Cleanup the stored message now that we've processed it
+          free(node->last_msgs[i]);
+          node->last_msgs[i] = NULL;
 
-          if (processed_command) {
-            printf(NOTICE "Processed stored command from fd %d\n", i);
-          }
+          // Print new prompt if needed
+          printf(YELLOW "> " RESET);
+          fflush(stdout);
         }
+      }
+    }
+
+    // Add any new external connections to the set
+    if (node->external && node->external->fd > 0) {
+      if (!FD_ISSET(node->external->fd, &node->master_fds)) {
+        add_fd_to_set(node, node->external->fd);
       }
     }
   }

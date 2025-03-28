@@ -166,52 +166,55 @@ void ndn_join(Node *node, u16 net) {
     node->external->fd = -1;
     return;
   }
-  buffer[n] = '\0';
-  char *escaped = str_escape(buffer);
-  printf(MAGENTA "fd_%02d" RESET "\t%s\n", external_fd, escaped);
-  free(escaped);
 
-  // Process each message separated by newline
-  char *next_msg = strtok(buffer, "\n");
-  bool safe_found = false;
-  while (next_msg != NULL) {
-    // Check if the message is a SAFE message
-    if (strncmp(next_msg, "SAFE", 4) == 0) {
-      char ip[16], tcp[6];
-      if (sscanf(next_msg, "SAFE %15s %5s", ip, tcp) == 2) {
-        ndn_safe(node, ip, tcp);
-        safe_found = true;
-      }
-    } else {
-      // Queue other messages for later processing by ndn_run
-      // (Add to node->last_msgs for the external_fd)
-      if (external_fd < (i64)node->last_msgs_capacity) {
-        if (node->last_msgs[external_fd]) {
-          free(node->last_msgs[external_fd]);
+  if (n > 0) {
+    buffer[n] = '\0';
+    char *escaped = str_escape(buffer);
+    printf(MAGENTA "fd_%02d" RESET "\t%s\n", external_fd, escaped);
+    free(escaped);
+
+    // Process SAFE message first
+    char ip[128], tcp[128];
+    bool safe_found = false;
+
+    if (sscanf(buffer, "SAFE %127s %127s", ip, tcp) == 2) {
+      ndn_safe(node, ip, tcp);
+      safe_found = true;
+
+      // Now check for ENTRY message in the same buffer
+      char *entry_msg = strstr(buffer, "\nENTRY ");
+      if (entry_msg) {
+        entry_msg++; // Skip the newline
+        printf(NOTICE
+               "Found ENTRY message in buffer, processing immediately\n");
+
+        // Parse ENTRY message
+        char entry_ip[128], entry_tcp[128];
+        if (sscanf(entry_msg, "ENTRY %127s %127s", entry_ip, entry_tcp) == 2) {
+          printf(NOTICE "Calling ndn_entry with %s:%s (fd=%d)\n", entry_ip,
+                 entry_tcp, external_fd);
+          ndn_entry(node, entry_ip, entry_tcp, external_fd);
         }
-        node->last_msgs[external_fd] = strdup(next_msg);
       }
-      printf(NOTICE "Queued message for later processing: %s\n", next_msg);
-    }
-    next_msg = strtok(NULL, "\n");
-  }
-
-  if (!safe_found) {
-    fprintf(stderr, ERR "No SAFE message received\n");
-    close(external_fd);
-
-    // Free memory before nullifying pointers
-    if (node->external->ip) {
-      free(node->external->ip);
-    }
-    if (node->external->tcp) {
-      free(node->external->tcp);
     }
 
-    node->external->ip = NULL;
-    node->external->tcp = NULL;
-    node->external->fd = -1;
-    return;
+    if (!safe_found) {
+      fprintf(stderr, ERR "No SAFE message received\n");
+      close(external_fd);
+
+      // Free memory before nullifying pointers
+      if (node->external->ip) {
+        free(node->external->ip);
+      }
+      if (node->external->tcp) {
+        free(node->external->tcp);
+      }
+
+      node->external->ip = NULL;
+      node->external->tcp = NULL;
+      node->external->fd = -1;
+      return;
+    }
   }
 
   // Now register the node with the network
@@ -375,45 +378,47 @@ void ndn_direct_join(Node *node, char *ip, char *tcp) {
     return;
   }
 
-  buffer[n] = '\0';
-  char *escaped = str_escape(buffer);
-  printf(MAGENTA "fd_%02d" RESET "\t%s\n", fd, escaped);
-  free(escaped);
+  if (n > 0) {
+    buffer[n] = '\0';
+    char *escaped = str_escape(buffer);
+    printf(MAGENTA "fd_%02d" RESET "\t%s\n", fd, escaped);
+    free(escaped);
 
-  // Process each message separated by newline
-  char *next_msg = strtok(buffer, "\n");
-  bool safe_found = false;
-  while (next_msg != NULL) {
-    // Check if the message is a SAFE message
-    if (strncmp(next_msg, "SAFE", 4) == 0) {
-      char ip[16], tcp[6];
-      if (sscanf(next_msg, "SAFE %15s %5s", ip, tcp) == 2) {
-        ndn_safe(node, ip, tcp);
-        safe_found = true;
-      }
-    } else {
-      // Queue other messages for later processing by ndn_run
-      // (Add to node->last_msgs for the fd)
-      if (fd < (i64)node->last_msgs_capacity) {
-        if (node->last_msgs[fd]) {
-          free(node->last_msgs[fd]);
+    // Process SAFE message first
+    char ip[128], tcp[128];
+    bool safe_found = false;
+
+    if (sscanf(buffer, "SAFE %127s %127s", ip, tcp) == 2) {
+      ndn_safe(node, ip, tcp);
+      safe_found = true;
+
+      // Now check for ENTRY message in the same buffer
+      char *entry_msg = strstr(buffer, "\nENTRY ");
+      if (entry_msg) {
+        entry_msg++; // Skip the newline
+        printf(NOTICE
+               "Found ENTRY message in buffer, processing immediately\n");
+
+        // Parse ENTRY message
+        char entry_ip[128], entry_tcp[128];
+        if (sscanf(entry_msg, "ENTRY %127s %127s", entry_ip, entry_tcp) == 2) {
+          printf(NOTICE "Calling ndn_entry with %s:%s (fd=%d)\n", entry_ip,
+                 entry_tcp, fd);
+          ndn_entry(node, entry_ip, entry_tcp, fd);
         }
-        node->last_msgs[fd] = strdup(next_msg);
       }
-      printf(NOTICE "Queued message for later processing: %s\n", next_msg);
     }
-    next_msg = strtok(NULL, "\n");
-  }
 
-  if (!safe_found) {
-    fprintf(stderr, ERR "No SAFE message received\n");
-    close(fd);
-    free(node->external->ip);
-    free(node->external->tcp);
-    node->external->ip = NULL;
-    node->external->tcp = NULL;
-    node->external->fd = -1;
-    return;
+    if (!safe_found) {
+      fprintf(stderr, ERR "No SAFE message received\n");
+      close(fd);
+      free(node->external->ip);
+      free(node->external->tcp);
+      node->external->ip = NULL;
+      node->external->tcp = NULL;
+      node->external->fd = -1;
+      return;
+    }
   }
 
   node->in_net = true;
